@@ -99,6 +99,18 @@ button:disabled { cursor: default; }
   .row { grid-template-columns: 24px 56px 1fr auto; }
 }
 
+/* Priority flags */
+.title { display: inline-flex; align-items: center; gap: 6px; }
+.flag { width: 14px; height: 14px; flex: none; }
+.flag-high { color: var(--danger); }
+.flag-medium { color: var(--sn-stylekit-warning-color, #f28c52); }
+.flag-low { color: var(--accent); }
+.row.prio-high .title { font-weight: 600; }
+.row.is-paid .flag { opacity: .5; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.toolbar { flex-wrap: wrap; }
+.toolbar label:first-child { margin-right: auto; }
+
 /* Totals in red (uses the theme's red so it stays readable in dark themes) */
 .sum { color: var(--danger); }
 

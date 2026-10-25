@@ -8,10 +8,11 @@
  *   "expenses": [
  *     { "id": "...", "name": "Rent", "amount": 850, "category": "Home",
  *       "date": "2026-11-01", "repeat": "monthly", "until": null,
- *       "paid": ["2026-11-01"] }
+ *       "paid": ["2026-11-01"], "priority": "high" }
  *   ]
  * }
  * "date" is the first due date; "paid" lists the occurrence dates already paid.
+ * "priority" is "high", "medium", "low", or null (no flag).
  */
 (() => {
   'use strict';
@@ -23,10 +24,10 @@
   let data = emptyData();
   let readOnly = false;
   let editingId = null;
-  const ui = { hidePaid: false, horizon: 12 };
+  const ui = { hidePaid: false, horizon: 12, priority: 'all' };
 
   const $ = (id) => document.getElementById(id);
-  const VERSION = '0.1.6'; // keep in sync with ?v= in index.html and "version" in ext.json
+  const VERSION = '0.1.7'; // keep in sync with ?v= in index.html and "version" in ext.json
   const diag = { streams: 0, log: [] };
   function logDiag(item) {
     diag.streams++;
@@ -112,6 +113,17 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const repeatLabel = { weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly' };
+  const PRIORITY = {
+    high: { label: 'High priority', rank: 0 },
+    medium: { label: 'Medium priority', rank: 1 },
+    low: { label: 'Low priority', rank: 2 },
+  };
+  const rank = (exp) => (PRIORITY[exp.priority] ? PRIORITY[exp.priority].rank : 3);
+  const flagSvg = (p) => PRIORITY[p]
+    ? `<svg class="flag flag-${p}" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M3.8 2.2h8.7l-2.2 3.3 2.2 3.3H3.8z" fill="currentColor"/></svg><span class="sr">${PRIORITY[p].label}: </span>`
+    : '';
+  // Priority filter: which ranks are shown (display only; totals always count everything)
+  const priorityFilters = { all: 3, high: 0, 'high-medium': 1 };
 
   // ---------- computing the view ----------
   function buildView() {
@@ -145,7 +157,7 @@
         months.get(key).push(row);
       }
     }
-    const byDate = (a, b) => a.date.localeCompare(b.date) || a.exp.name.localeCompare(b.exp.name);
+    const byDate = (a, b) => a.date.localeCompare(b.date) || rank(a.exp) - rank(b.exp) || a.exp.name.localeCompare(b.exp.name);
     overdue.sort(byDate);
     for (const rows of months.values()) rows.sort(byDate);
 
@@ -161,7 +173,8 @@
   // ---------- rendering ----------
   function rowHtml({ exp, date, paid }, today) {
     const late = !paid && date < today;
-    const cls = ['row', paid ? 'is-paid' : '', late ? 'is-late' : '', date === today ? 'is-today' : ''].join(' ');
+    const cls = ['row', paid ? 'is-paid' : '', late ? 'is-late' : '', date === today ? 'is-today' : '',
+      PRIORITY[exp.priority] ? `prio-${exp.priority}` : ''].join(' ');
     const meta = [exp.category, repeatLabel[exp.repeat]].filter(Boolean).map(esc).join(', ');
     return `
       <li class="${cls}">
@@ -170,11 +183,13 @@
         </label>
         <span class="day">${esc(dayLabel(date, late))}</span>
         <button type="button" class="name" data-edit="${esc(exp.id)}" ${readOnly ? 'disabled' : ''}>
-          ${esc(exp.name)}${meta ? `<small>${meta}</small>` : ''}
+          <span class="title">${flagSvg(exp.priority)}${esc(exp.name)}</span>${meta ? `<small>${meta}</small>` : ''}
         </button>
         <span class="amount">${esc(money(exp.amount))}</span>
       </li>`;
   }
+
+  const shown = (r) => rank(r.exp) <= priorityFilters[ui.priority];
 
   function render() {
     const v = buildView();
@@ -189,19 +204,19 @@
     if (v.overdue.length) {
       html += `<div class="month overdue">
         <h2><span>Overdue</span><span class="sum">${esc(money(v.overdueTotal))}</span></h2>
-        <ul>${v.overdue.map((r) => rowHtml(r, v.today)).join('')}</ul></div>`;
+        <ul>${v.overdue.filter(shown).map((r) => rowHtml(r, v.today)).join('') || '<p class="empty">Nothing matches the priority filter.</p>'}</ul></div>`;
     }
 
     let running = v.overdueTotal;
     for (const [key, all] of v.months) {
-      const rows = ui.hidePaid ? all.filter((r) => !r.paid) : all;
+      const rows = all.filter((r) => (!ui.hidePaid || !r.paid) && shown(r));
       const unpaid = all.filter((r) => !r.paid).reduce((s, r) => s + r.exp.amount, 0);
       running += unpaid;
       html += `<div class="month">
         <h2><span>${esc(monthLabel(key))}</span>
           <span><span class="sum">${esc(money(unpaid))}</span> <small class="muted" title="Running total of unpaid expenses"><span class="sum">${esc(money(running))}</span> total</small></span></h2>
         ${rows.length ? `<ul>${rows.map((r) => rowHtml(r, v.today)).join('')}</ul>`
-                      : `<p class="empty">${all.length ? 'All paid.' : 'Nothing planned.'}</p>`}
+                      : `<p class="empty">${!all.length ? 'Nothing planned.' : ui.priority !== 'all' ? 'Nothing matches the priority filter.' : 'All paid.'}</p>`}
       </div>`;
     }
     if (!data.expenses.length) {
@@ -301,6 +316,7 @@
     $('f-until').value = exp.until || '';
     $('f-until').hidden = (exp.repeat || 'none') === 'none';
     $('f-category').value = exp.category || '';
+    $('f-priority').value = exp.priority || '';
     $('f-submit').textContent = 'Save changes';
     $('f-cancel').hidden = false;
     $('f-delete').hidden = false;
@@ -320,6 +336,7 @@
       repeat,
       until: repeat !== 'none' && $('f-until').value ? $('f-until').value : null,
       category: $('f-category').value.trim(),
+      priority: $('f-priority').value || null,
     };
     if (!fields.name || !fields.date || !Number.isFinite(fields.amount)) return;
     if (editingId) {
@@ -363,6 +380,7 @@
 
   $('hide-paid').addEventListener('change', (e) => { ui.hidePaid = e.target.checked; render(); });
   $('horizon').addEventListener('change', (e) => { ui.horizon = Number(e.target.value); render(); });
+  $('priority-filter').addEventListener('change', (e) => { ui.priority = e.target.value; render(); });
 
   // ---------- start ----------
   if (!standalone && typeof ComponentRelay === 'undefined') {
@@ -378,10 +396,10 @@
     const t = todayStr();
     data = {
       version: 1, currency: 'EUR', expenses: [
-        { id: 'a', name: 'Rent', amount: 850, category: 'Home', date: t.slice(0, 8) + '01', repeat: 'monthly', until: null, paid: [] },
-        { id: 'b', name: 'Car insurance', amount: 420, category: 'Car', date: addDays(t, 20), repeat: 'yearly', until: null, paid: [] },
+        { id: 'a', name: 'Rent', amount: 850, category: 'Home', date: t.slice(0, 8) + '01', repeat: 'monthly', until: null, paid: [], priority: 'high' },
+        { id: 'b', name: 'Car insurance', amount: 420, category: 'Car', date: addDays(t, 20), repeat: 'yearly', until: null, paid: [], priority: 'medium' },
         { id: 'c', name: 'Phone', amount: 19.99, category: 'Subscriptions', date: addDays(t, -3), repeat: 'monthly', until: null, paid: [] },
-        { id: 'd', name: 'New laptop', amount: 1200, category: 'Tech', date: addDays(t, 75), repeat: 'none', until: null, paid: [] },
+        { id: 'd', name: 'New laptop', amount: 1200, category: 'Tech', date: addDays(t, 75), repeat: 'none', until: null, paid: [], priority: 'low' },
       ],
     };
     resetForm();
