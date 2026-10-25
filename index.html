@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upcoming Expenses</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app">
+    <div id="notice" class="notice" hidden></div>
+
+    <section id="summary" class="summary" aria-live="polite"></section>
+
+    <form id="form" class="entry" autocomplete="off">
+      <input id="f-name" placeholder="What is it? e.g. Car insurance" required>
+      <input id="f-amount" type="number" step="0.01" min="0" placeholder="Amount" required>
+      <input id="f-date" type="date" required>
+      <select id="f-repeat" aria-label="Repeats">
+        <option value="none">Once</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+      <input id="f-until" type="date" aria-label="Repeat until (optional)" title="Repeat until (optional)" hidden>
+      <input id="f-category" placeholder="Category" list="categories">
+      <datalist id="categories"></datalist>
+      <div class="entry-actions">
+        <button type="submit" id="f-submit">Add expense</button>
+        <button type="button" id="f-cancel" class="quiet" hidden>Cancel</button>
+        <button type="button" id="f-delete" class="danger" hidden>Delete</button>
+      </div>
+    </form>
+
+    <div class="toolbar">
+      <label><input type="checkbox" id="hide-paid"> Hide paid</label>
+      <label>Show
+        <select id="horizon">
+          <option value="3">3 months</option>
+          <option value="6">6 months</option>
+          <option value="12" selected>12 months</option>
+          <option value="24">24 months</option>
+        </select>
+      </label>
+    </div>
+
+    <section id="timeline" class="timeline"></section>
+  </main>
+
+  <!-- Standard Notes ComponentRelay (UMD build). For offline/desktop use, download this file and reference it locally. -->
+  <script src="https://cdn.jsdelivr.net/npm/@standardnotes/component-relay@2.2.2/dist/dist.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

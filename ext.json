@@ -1,0 +1,9 @@
+{
+  "identifier": "com.example.upcoming-expenses",
+  "name": "Upcoming Expenses",
+  "description": "Plan future and recurring expenses, see what's due by month, and tick them off when paid.",
+  "content_type": "SN|Component",
+  "area": "editor-editor",
+  "version": "0.1.0",
+  "url": "http://localhost:8001/index.html"
+}

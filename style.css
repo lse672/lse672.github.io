@@ -1,0 +1,100 @@
+/* Colors come from the active Standard Notes theme (stylekit variables);
+   the fallbacks only apply when previewing the page outside the app. */
+:root {
+  --bg: var(--sn-stylekit-background-color, #ffffff);
+  --fg: var(--sn-stylekit-foreground-color, #1d2330);
+  --muted: var(--sn-stylekit-neutral-color, #6b7280);
+  --surface: var(--sn-stylekit-contrast-background-color, #f3f4f6);
+  --border: var(--sn-stylekit-border-color, #e1e4ea);
+  --accent: var(--sn-stylekit-info-color, #086dd6);
+  --accent-fg: var(--sn-stylekit-info-contrast-color, #ffffff);
+  --danger: var(--sn-stylekit-danger-color, #cc2128);
+  --success: var(--sn-stylekit-success-color, #2b9612);
+  --font: var(--sn-stylekit-sans-serif-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-sn-theme]) {
+    --bg: var(--sn-stylekit-background-color, #15171c);
+    --fg: var(--sn-stylekit-foreground-color, #e6e8ec);
+    --muted: var(--sn-stylekit-neutral-color, #9097a3);
+    --surface: var(--sn-stylekit-contrast-background-color, #1f2229);
+    --border: var(--sn-stylekit-border-color, #2d313a);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font); }
+main { max-width: 760px; margin: 0 auto; padding: 16px 16px 48px; }
+button, input, select { font: inherit; color: inherit; }
+.muted { color: var(--muted); font-weight: normal; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Notice (locked note / unknown text) */
+.notice { border: 1px solid var(--danger); border-radius: 6px; padding: 10px 12px; margin-bottom: 16px; }
+.notice p { margin: 0 0 8px; }
+
+/* Summary: the figure that matters most is what's due soon */
+.summary { margin-bottom: 16px; }
+.summary p { margin: 0; }
+.summary p:first-child { font-size: 15px; }
+.summary p:first-child strong { display: block; font-size: 30px; line-height: 1.15; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.summary .late { color: var(--danger); margin-top: 4px; }
+.summary .muted { margin-top: 2px; }
+
+/* Entry form */
+.entry {
+  display: grid; gap: 8px; padding: 12px; border-radius: 8px; background: var(--surface);
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+}
+.entry #f-name { grid-column: 1 / -1; }
+.entry input, .entry select {
+  width: 100%; padding: 7px 9px; border: 1px solid var(--border); border-radius: 5px; background: var(--bg);
+}
+.entry-actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+.entry.disabled { opacity: .55; }
+button { cursor: pointer; border: 1px solid transparent; border-radius: 5px; padding: 6px 14px; background: var(--accent); color: var(--accent-fg); }
+button.quiet { background: transparent; border-color: var(--border); color: var(--fg); }
+button.danger { background: transparent; border-color: var(--danger); color: var(--danger); margin-left: auto; }
+.notice button.danger { margin-left: 0; }
+button:disabled { cursor: default; }
+
+.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 14px 2px 4px; color: var(--muted); }
+.toolbar select { padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); }
+
+/* Timeline */
+.month { margin-top: 18px; }
+.month h2 {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  margin: 0; padding: 0 2px 6px; font-size: 15px; font-weight: 600;
+  border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums;
+}
+.month h2 small { margin-left: 8px; font-size: 12px; }
+.month.overdue h2 { color: var(--danger); border-bottom-color: var(--danger); }
+.month ul { list-style: none; margin: 0; padding: 0; }
+.empty { color: var(--muted); margin: 6px 2px; }
+.empty.lead { margin: 20px 2px 0; }
+
+.row {
+  display: grid; grid-template-columns: 26px 72px 1fr auto; align-items: center; gap: 6px;
+  padding: 6px 2px; border-bottom: 1px solid var(--border);
+}
+.check { display: flex; justify-content: center; }
+.check input { width: 16px; height: 16px; accent-color: var(--success); cursor: pointer; }
+.day { color: var(--muted); font-variant-numeric: tabular-nums; }
+.name {
+  all: unset; cursor: pointer; min-width: 0; overflow-wrap: anywhere;
+}
+.name:hover { text-decoration: underline; }
+.name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.name small { display: block; color: var(--muted); font-size: 12px; }
+.amount { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+
+.row.is-today .day { color: var(--accent); font-weight: 600; }
+.row.is-late .day, .row.is-late .amount { color: var(--danger); }
+.row.is-paid .name, .row.is-paid .amount { color: var(--muted); text-decoration: line-through; }
+
+@media (max-width: 520px) {
+  .entry { grid-template-columns: 1fr 1fr; }
+  .row { grid-template-columns: 24px 56px 1fr auto; }
+}
