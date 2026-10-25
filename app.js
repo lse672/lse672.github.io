@@ -26,7 +26,7 @@
   const ui = { hidePaid: false, horizon: 12 };
 
   const $ = (id) => document.getElementById(id);
-  const VERSION = '0.1.4'; // keep in sync with ?v= in index.html and "version" in ext.json
+  const VERSION = '0.1.5'; // keep in sync with ?v= in index.html and "version" in ext.json
   const diag = { streams: 0, log: [] };
   function logDiag(item) {
     diag.streams++;
@@ -391,6 +391,13 @@
     relay = new Relay({
       targetWindow: window,
       options: { coallesedSaving: true, coallesedSavingDelay: 400, acceptsThemes: true },
+      // Required since component-relay 2.3: called on every save. Returning undefined
+      // lets Standard Notes keep sizing the editor itself.
+      handleRequestForContentHeight: () => undefined,
+    });
+    // Surface any error during saving instead of failing silently.
+    window.addEventListener('error', (e) => {
+      showNotice(`Something went wrong, so your last change may not be saved (${String(e.message || 'unknown error').replace(/\.+$/, '')}). Reopen the note before editing again.`);
     });
     renderDiag();
     relay.streamContextItem((item) => {
