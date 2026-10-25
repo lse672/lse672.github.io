@@ -26,7 +26,7 @@
   const ui = { hidePaid: false, horizon: 12 };
 
   const $ = (id) => document.getElementById(id);
-  const VERSION = '0.1.3'; // keep in sync with ?v= in index.html and "version" in ext.json
+  const VERSION = '0.1.4'; // keep in sync with ?v= in index.html and "version" in ext.json
   const diag = { streams: 0, log: [] };
   function logDiag(item) {
     diag.streams++;
