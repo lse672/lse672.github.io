@@ -26,6 +26,7 @@
   const ui = { hidePaid: false, horizon: 12 };
 
   const $ = (id) => document.getElementById(id);
+  const VERSION = '0.1.3'; // keep in sync with ?v= in index.html and "version" in ext.json
   const diag = { streams: 0, log: [] };
   function logDiag(item) {
     diag.streams++;
@@ -47,7 +48,7 @@
     if (!el) return;
     const env = relay ? `${relay.environment || '?'} / ${relay.platform || '?'}` : (standalone ? 'browser preview' : 'not connected');
     el.querySelector('pre').textContent =
-      `Environment: ${env}\nMessages received: ${diag.streams}\nText we loaded: ${lastText == null ? '—' : lastText.length + ' chars'}\n\n` +
+      `Plugin version: ${VERSION}\nEnvironment: ${env}\nMessages received: ${diag.streams}\nText we loaded: ${lastText == null ? '—' : lastText.length + ' chars'}\n\n` +
       diag.log.map((d) => `${d.t}  note ${d.uuid} "${d.title}"\n  text: ${d.textLen} chars, preview: ${d.previewLen}, metadata-only: ${d.meta}\n  fields: ${d.keys}`).join('\n\n');
   }
   const standalone = window.parent === window; // opened directly in a browser for development
@@ -370,6 +371,7 @@
     readOnly = true;
     resetForm();
     render();
+    renderDiag();
     showNotice('Couldn’t connect to Standard Notes (component-relay.js failed to load), so this note can’t be read or saved. Check that component-relay.js is uploaded next to index.html, then reopen the note.');
   } else if (standalone) {
     // Development preview with sample data (nothing is saved).
@@ -390,6 +392,7 @@
       targetWindow: window,
       options: { coallesedSaving: true, coallesedSavingDelay: 400, acceptsThemes: true },
     });
+    renderDiag();
     relay.streamContextItem((item) => {
       const isNewNote = !note || item.uuid !== note.uuid;
       note = item;
