@@ -20,7 +20,7 @@ python3 -m http.server 8001
 3. Install the plugin from the hosted `ext.json` URL.
 4. Optionally, for the desktop app to work offline, add a `download_url` pointing to a zip of the folder.
 
-`index.html` loads `@standardnotes/component-relay` from jsDelivr. For a fully offline bundle, download that file into this folder and change the `<script src>` to the local copy. Note that the library is AGPL-3.0 licensed.
+`component-relay.js` is the official `@standardnotes/component-relay` 2.2.2 browser build, included so the plugin has no outside dependencies. Its license (AGPL-3.0) is in `component-relay.LICENSE`.
 
 ## Safety
 

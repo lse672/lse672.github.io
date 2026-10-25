@@ -339,7 +339,14 @@
   $('horizon').addEventListener('change', (e) => { ui.horizon = Number(e.target.value); render(); });
 
   // ---------- start ----------
-  if (standalone || typeof ComponentRelay === 'undefined') {
+  if (!standalone && typeof ComponentRelay === 'undefined') {
+    // Running inside Standard Notes but the connection library didn't load:
+    // refuse to edit rather than pretend to save.
+    readOnly = true;
+    resetForm();
+    render();
+    showNotice('Couldn’t connect to Standard Notes (component-relay.js failed to load), so this note can’t be read or saved. Check that component-relay.js is uploaded next to index.html, then reopen the note.');
+  } else if (standalone) {
     // Development preview with sample data (nothing is saved).
     const t = todayStr();
     data = {
@@ -361,8 +368,7 @@
     relay.streamContextItem((item) => {
       const isNewNote = !note || item.uuid !== note.uuid;
       note = item;
-      if (item.isMetadataUpdate) return;
-      const text = item.content.text || '';
+      const text = (item.content && item.content.text) || '';
       // Reload when switching notes or when the text changed elsewhere (e.g. another device).
       if (isNewNote || text !== lastText) load(text);
     });
