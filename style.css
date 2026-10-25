@@ -98,3 +98,8 @@ button:disabled { cursor: default; }
   .entry { grid-template-columns: 1fr 1fr; }
   .row { grid-template-columns: 24px 56px 1fr auto; }
 }
+
+/* Diagnostics */
+.diag { margin-top: 32px; color: var(--muted); font-size: 12px; }
+.diag summary { cursor: pointer; }
+.diag pre { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface); padding: 8px 10px; border-radius: 6px; margin: 6px 0 0; }

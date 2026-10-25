@@ -26,6 +26,30 @@
   const ui = { hidePaid: false, horizon: 12 };
 
   const $ = (id) => document.getElementById(id);
+  const diag = { streams: 0, log: [] };
+  function logDiag(item) {
+    diag.streams++;
+    const c = (item && item.content) || {};
+    diag.log.unshift({
+      t: new Date().toLocaleTimeString(),
+      uuid: item && item.uuid ? item.uuid.slice(0, 8) : '—',
+      title: c.title || '',
+      textLen: typeof c.text === 'string' ? c.text.length : `(${typeof c.text})`,
+      previewLen: typeof c.preview_plain === 'string' ? c.preview_plain.length : 0,
+      meta: !!(item && item.isMetadataUpdate),
+      keys: Object.keys(c).join(', '),
+    });
+    diag.log.length = Math.min(diag.log.length, 6);
+    renderDiag();
+  }
+  function renderDiag() {
+    const el = $('diag');
+    if (!el) return;
+    const env = relay ? `${relay.environment || '?'} / ${relay.platform || '?'}` : (standalone ? 'browser preview' : 'not connected');
+    el.querySelector('pre').textContent =
+      `Environment: ${env}\nMessages received: ${diag.streams}\nText we loaded: ${lastText == null ? '—' : lastText.length + ' chars'}\n\n` +
+      diag.log.map((d) => `${d.t}  note ${d.uuid} "${d.title}"\n  text: ${d.textLen} chars, preview: ${d.previewLen}, metadata-only: ${d.meta}\n  fields: ${d.keys}`).join('\n\n');
+  }
   const standalone = window.parent === window; // opened directly in a browser for development
 
   function emptyData() {
@@ -213,7 +237,8 @@
 
   function load(text) {
     $('notice').hidden = true;
-    readOnly = !!(relay && note && relay.getItemAppDataValue(note, 'locked'));
+    readOnly = false;
+    try { readOnly = !!(relay && note && relay.getItemAppDataValue(note, 'locked')); } catch { /* no app data on this note */ }
     if (!text || !text.trim()) {
       data = emptyData();
     } else {
@@ -368,9 +393,24 @@
     relay.streamContextItem((item) => {
       const isNewNote = !note || item.uuid !== note.uuid;
       note = item;
+      logDiag(item);
       const text = (item.content && item.content.text) || '';
+      const preview = (item.content && item.content.preview_plain) || '';
+      // Safety: an empty text on a note that already has our summary as its preview
+      // means the app didn't send the real content. Never let the user overwrite it.
+      if (!text.trim() && preview.includes('due in 30 days')) {
+        lastText = null;
+        data = emptyData();
+        readOnly = true;
+        resetForm();
+        render();
+        showNotice('Standard Notes sent this note without its content, so editing is turned off to protect your list. Open “Connection details” at the bottom and share what it shows.');
+        renderDiag();
+        return;
+      }
       // Reload when switching notes or when the text changed elsewhere (e.g. another device).
       if (isNewNote || text !== lastText) load(text);
+      renderDiag();
     });
   }
 })();
