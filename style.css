@@ -99,6 +99,9 @@ button:disabled { cursor: default; }
   .row { grid-template-columns: 24px 56px 1fr auto; }
 }
 
+/* Totals in red (uses the theme's red so it stays readable in dark themes) */
+.sum { color: var(--danger); }
+
 /* Diagnostics */
 .diag { margin-top: 32px; color: var(--muted); font-size: 12px; }
 .diag summary { cursor: pointer; }

@@ -26,7 +26,7 @@
   const ui = { hidePaid: false, horizon: 12 };
 
   const $ = (id) => document.getElementById(id);
-  const VERSION = '0.1.5'; // keep in sync with ?v= in index.html and "version" in ext.json
+  const VERSION = '0.1.6'; // keep in sync with ?v= in index.html and "version" in ext.json
   const diag = { streams: 0, log: [] };
   function logDiag(item) {
     diag.streams++;
@@ -180,15 +180,15 @@
     const v = buildView();
 
     $('summary').innerHTML = `
-      <p><strong>${esc(money(v.dueSoon))}</strong> due in the next 30 days
+      <p><strong class="sum">${esc(money(v.dueSoon))}</strong> due in the next 30 days
         <span class="muted">(${v.dueSoonCount} ${v.dueSoonCount === 1 ? 'payment' : 'payments'})</span></p>
-      ${v.overdueTotal > 0 ? `<p class="late"><strong>${esc(money(v.overdueTotal))}</strong> overdue</p>` : ''}
-      <p class="muted">${esc(money(v.horizonTotal))} still to pay over the next ${ui.horizon} months</p>`;
+      ${v.overdueTotal > 0 ? `<p class="late"><strong class="sum">${esc(money(v.overdueTotal))}</strong> overdue</p>` : ''}
+      <p class="muted"><span class="sum">${esc(money(v.horizonTotal))}</span> still to pay over the next ${ui.horizon} months</p>`;
 
     let html = '';
     if (v.overdue.length) {
       html += `<div class="month overdue">
-        <h2><span>Overdue</span><span>${esc(money(v.overdueTotal))}</span></h2>
+        <h2><span>Overdue</span><span class="sum">${esc(money(v.overdueTotal))}</span></h2>
         <ul>${v.overdue.map((r) => rowHtml(r, v.today)).join('')}</ul></div>`;
     }
 
@@ -199,7 +199,7 @@
       running += unpaid;
       html += `<div class="month">
         <h2><span>${esc(monthLabel(key))}</span>
-          <span>${esc(money(unpaid))} <small class="muted" title="Running total of unpaid expenses">${esc(money(running))} total</small></span></h2>
+          <span><span class="sum">${esc(money(unpaid))}</span> <small class="muted" title="Running total of unpaid expenses"><span class="sum">${esc(money(running))}</span> total</small></span></h2>
         ${rows.length ? `<ul>${rows.map((r) => rowHtml(r, v.today)).join('')}</ul>`
                       : `<p class="empty">${all.length ? 'All paid.' : 'Nothing planned.'}</p>`}
       </div>`;
