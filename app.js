@@ -27,7 +27,7 @@
   const ui = { hidePaid: false, horizon: 12, priority: 'all' };
 
   const $ = (id) => document.getElementById(id);
-  const VERSION = '0.1.7'; // keep in sync with ?v= in index.html and "version" in ext.json
+  const VERSION = '0.1.9'; // keep in sync with ?v= in index.html and "version" in ext.json
   const diag = { streams: 0, log: [] };
   function logDiag(item) {
     diag.streams++;
@@ -118,6 +118,9 @@
     medium: { label: 'Medium priority', rank: 1 },
     low: { label: 'Low priority', rank: 2 },
   };
+  const PRIO_KEYS = ['high', 'medium', 'low', 'none'];
+  const PRIO_LABEL = { high: 'High', medium: 'Medium', low: 'Low', none: 'No priority' };
+  const prioKey = (exp) => (PRIORITY[exp.priority] ? exp.priority : 'none');
   const rank = (exp) => (PRIORITY[exp.priority] ? PRIORITY[exp.priority].rank : 3);
   const flagSvg = (p) => PRIORITY[p]
     ? `<svg class="flag flag-${p}" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M3.8 2.2h8.7l-2.2 3.3 2.2 3.3H3.8z" fill="currentColor"/></svg><span class="sr">${PRIORITY[p].label}: </span>`
@@ -137,6 +140,7 @@
     const overdue = [];
     const months = new Map();
     let dueSoon = 0, dueSoonCount = 0, overdueTotal = 0, horizonTotal = 0;
+    const horizonByPrio = { high: 0, medium: 0, low: 0, none: 0 };
 
     for (const exp of data.expenses) {
       for (const date of occurrences(exp, lookBack, horizonEnd)) {
@@ -150,6 +154,7 @@
         if (date < thisMonthStart) continue; // older paid items aren't shown
         if (!paid) {
           horizonTotal += exp.amount;
+          horizonByPrio[prioKey(exp)] += exp.amount;
           if (date <= in30) { dueSoon += exp.amount; dueSoonCount++; }
         }
         const key = monthKey(date);
@@ -167,7 +172,7 @@
       if (!months.has(key)) months.set(key, []);
     }
     const sortedMonths = [...months.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-    return { overdue, months: sortedMonths, overdueTotal, dueSoon, dueSoonCount, horizonTotal, today };
+    return { overdue, months: sortedMonths, overdueTotal, dueSoon, dueSoonCount, horizonTotal, horizonByPrio, today };
   }
 
   // ---------- rendering ----------
@@ -189,6 +194,20 @@
       </li>`;
   }
 
+  // ---------- priority breakdown ----------
+  const pct = (part, total) => (total > 0 ? Math.round((part / total) * 100) : 0);
+  const prioIcon = (k) => (k === 'none' ? '<span class="flag flag-none" aria-hidden="true"></span>' : flagSvg(k));
+
+  function breakdownHtml(v) {
+    const used = PRIO_KEYS.filter((k) => v.horizonByPrio[k] > 0);
+    // Only worth showing once at least one expense has a priority
+    if (!used.length || (used.length === 1 && used[0] === 'none')) return '';
+    return `<ul class="prio-breakdown">${used.map((k) => `
+      <li><span class="title">${prioIcon(k)}${PRIO_LABEL[k]}</span>
+        <span class="sum">${esc(money(v.horizonByPrio[k]))}</span>
+        <span class="muted">${pct(v.horizonByPrio[k], v.horizonTotal)}%</span></li>`).join('')}</ul>`;
+  }
+
   const shown = (r) => rank(r.exp) <= priorityFilters[ui.priority];
 
   function render() {
@@ -198,7 +217,8 @@
       <p><strong class="sum">${esc(money(v.dueSoon))}</strong> due in the next 30 days
         <span class="muted">(${v.dueSoonCount} ${v.dueSoonCount === 1 ? 'payment' : 'payments'})</span></p>
       ${v.overdueTotal > 0 ? `<p class="late"><strong class="sum">${esc(money(v.overdueTotal))}</strong> overdue</p>` : ''}
-      <p class="muted"><span class="sum">${esc(money(v.horizonTotal))}</span> still to pay over the next ${ui.horizon} months</p>`;
+      <p class="muted"><span class="sum">${esc(money(v.horizonTotal))}</span> still to pay over the next ${ui.horizon} months</p>
+      ${breakdownHtml(v)}`;
 
     let html = '';
     if (v.overdue.length) {

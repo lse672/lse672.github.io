@@ -111,6 +111,11 @@ button:disabled { cursor: default; }
 .toolbar { flex-wrap: wrap; }
 .toolbar label:first-child { margin-right: auto; }
 
+/* Priority breakdown under the summary */
+.prio-breakdown { list-style: none; margin: 6px 0 0; padding: 0 0 0 2px; }
+.prio-breakdown li { display: grid; grid-template-columns: 9.5em auto 1fr; gap: 10px; align-items: center; padding: 1px 0; font-variant-numeric: tabular-nums; }
+.flag-none { display: inline-block; width: 14px; height: 14px; }
+
 /* Totals in red (uses the theme's red so it stays readable in dark themes) */
 .sum { color: var(--danger); }
 
