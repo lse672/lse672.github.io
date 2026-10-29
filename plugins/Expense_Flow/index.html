@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Expense Flow</title>
+  <meta http-equiv="Cache-Control" content="no-cache">
+  <link rel="stylesheet" href="style.css?v=0.1.0">
+</head>
+<body>
+  <main id="app">
+    <div id="notice" class="notice" hidden></div>
+
+    <header class="top">
+      <div class="period" role="group" aria-label="Period">
+        <button type="button" class="quiet arrow" id="prev" aria-label="Previous month">‹</button>
+        <button type="button" class="quiet label" id="month-btn"></button>
+        <button type="button" class="quiet arrow" id="next" aria-label="Next month">›</button>
+        <button type="button" class="quiet" id="all-btn" aria-pressed="false">All</button>
+      </div>
+    </header>
+
+    <section id="summary" class="summary" aria-live="polite"></section>
+
+    <section class="flow">
+      <div class="flow-head">
+        <span class="muted">Tap a category to filter the list.</span>
+        <label><input type="checkbox" id="subs-toggle" checked> Sub-categories</label>
+      </div>
+      <div id="sankey"></div>
+    </section>
+
+    <form id="form" class="entry" autocomplete="off">
+      <p class="form-title" id="f-title">New entry</p>
+      <div class="seg" role="radiogroup" aria-label="Type">
+        <label><input type="radio" name="f-type" value="out" checked> Expense</label>
+        <label><input type="radio" name="f-type" value="in"> Income</label>
+      </div>
+      <input id="f-amount" type="text" inputmode="decimal" placeholder="Amount" aria-label="Amount">
+      <input id="f-label" maxlength="80" placeholder="What is it? e.g. Groceries" aria-label="Title">
+      <select id="f-cat" aria-label="Category"></select>
+      <select id="f-sub" aria-label="Sub-category"></select>
+      <input id="f-date" type="date" aria-label="Date">
+      <select id="f-repeat" aria-label="Repeats">
+        <option value="none">Once</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+      <input id="f-until" type="date" aria-label="Repeat until (optional)" title="Repeat until (optional)" hidden>
+      <input id="f-note" maxlength="300" placeholder="Note (optional)" aria-label="Note">
+      <p class="form-info" id="f-info" hidden></p>
+      <p class="form-err" id="f-err" role="alert"></p>
+      <div class="entry-actions">
+        <button type="submit" id="f-submit">Add entry</button>
+        <button type="button" id="f-cancel" class="quiet" hidden>Cancel</button>
+        <button type="button" id="f-series" class="quiet" hidden>Edit series</button>
+        <button type="button" id="f-end" class="quiet" hidden>End series today</button>
+        <button type="button" id="f-delete" class="danger" hidden>Delete</button>
+      </div>
+    </form>
+
+    <div class="cols">
+      <section>
+        <div class="toolbar">
+          <input id="search" type="search" placeholder="Search" aria-label="Search entries">
+        </div>
+        <div id="chips" class="chips"></div>
+        <div id="list"></div>
+      </section>
+      <aside>
+        <h2>Spending by category</h2>
+        <ul id="totals" class="totals"></ul>
+        <h2>Recurring</h2>
+        <div id="recurring"></div>
+      </aside>
+    </div>
+
+    <details id="cat-editor" class="panel">
+      <summary>Manage categories</summary>
+      <div id="cat-body"></div>
+    </details>
+
+    <details id="diag" class="diag">
+      <summary>Connection details</summary>
+      <pre></pre>
+    </details>
+  </main>
+
+  <!-- Standard Notes ComponentRelay 2.3.2 (UMD build), served from this folder. License: component-relay.LICENSE (AGPL-3.0). -->
+  <script src="component-relay.js?v=0.1.0"></script>
+  <script src="app.js?v=0.1.0"></script>
+</body>
+</html>
