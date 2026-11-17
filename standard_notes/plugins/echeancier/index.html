@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Échéancier de prêt</title>
+<!--
+  Éditeur Standard Notes — Calcul d'un échéancier d'emprunt (avec inflation)
+  Portage de echeancier_panel_v4.md (Panel / Python) — Louis-Jonardan Gallin
+  La note stocke les paramètres du prêt en JSON ; tout est recalculé à l'affichage.
+-->
+<link rel="stylesheet" href="lib/katex/katex.min.css">
+<style>
+/* ---------- Thème : variables Standard Notes avec valeurs de repli ---------- */
+:root {
+  --bg:      var(--sn-stylekit-background-color, #ffffff);
+  --fg:      var(--sn-stylekit-foreground-color, #1b1b1a);
+  --muted:   var(--sn-stylekit-neutral-color, #6b6a66);
+  --border:  var(--sn-stylekit-border-color, #e1e0dc);
+  --panel:   var(--sn-stylekit-secondary-background-color, #f6f6f4);
+  --panel2:  var(--sn-stylekit-contrast-background-color, #efeeeb);
+  --accent:  var(--sn-stylekit-info-color, #086dd6);
+  --danger:  var(--sn-stylekit-danger-color, #cc2128);
+  --font:    var(--sn-stylekit-sans-serif-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  --mono:    var(--sn-stylekit-monospace-font, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  /* séries (palette catégorielle validée, ordre fixe) */
+  --s1: #2a78d6;   /* capital  */
+  --s2: #eb6834;   /* intérêts */
+  --s3: #1baf7a;   /* € constants (total versé) */
+  --grid: rgba(127,127,127,.18);
+}
+:root[data-theme="dark"] {
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --grid: rgba(200,200,200,.14);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font);
+  font-size: 14px; line-height: 1.45; overflow: auto;
+  -webkit-text-size-adjust: 100%;
+}
+.app { display: grid; grid-template-columns: 290px minmax(0, 1fr); min-height: 100%; }
+@media (max-width: 760px) { .app { grid-template-columns: 1fr; } }
+
+/* ---------- Barre latérale ---------- */
+aside {
+  background: var(--panel); border-right: 1px solid var(--border);
+  padding: 16px 16px 24px;
+}
+@media (max-width: 760px) { aside { border-right: 0; border-bottom: 1px solid var(--border); } }
+aside h1 { font-size: 16px; margin: 0 0 14px; font-weight: 650; }
+.field { margin-bottom: 12px; }
+.field > label, .field > .lbl { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; font-weight: 550; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+@media (max-width: 760px) { .params { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 12px; align-items: end; } }
+input[type=number], select, textarea {
+  width: 100%; font: inherit; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px;
+}
+input[type=number] { font-variant-numeric: tabular-nums; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+input:invalid { border-color: var(--danger); }
+textarea { resize: vertical; min-height: 64px; font-size: 13px; }
+.seg { display: flex; flex-direction: column; gap: 4px; }
+.seg label {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 9px; background: var(--bg);
+  font-size: 13px;
+}
+.seg label:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.seg input { accent-color: var(--accent); margin: 0; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+button {
+  font: inherit; font-size: 13px; cursor: pointer; color: var(--fg);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 1em; }
+.banner { font-size: 12.5px; padding: 8px 10px; border-radius: 6px; margin-bottom: 12px;
+  background: var(--panel2); border: 1px solid var(--border); }
+.banner[hidden] { display: none; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+fieldset:disabled { opacity: .65; }
+
+/* ---------- Zone principale ---------- */
+main { padding: 18px 22px 40px; min-width: 0; }
+@media (max-width: 760px) { main { padding: 14px 12px 32px; } }
+h2 { font-size: 15px; margin: 0 0 10px; font-weight: 650; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: var(--bg); }
+.card .k { font-size: 12px; color: var(--muted); }
+.card .v { font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.card .s { font-size: 12px; color: var(--muted); margin-top: 2px; }
+table.resume { border-collapse: collapse; width: 100%; max-width: 640px; font-size: 13.5px; margin-bottom: 22px; }
+table.resume td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+table.resume td:last-child { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.resume tr.sep td { font-weight: 650; padding-top: 12px; border-bottom-color: var(--fg); }
+
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 18px; margin-bottom: 22px; }
+.chart { border: 1px solid var(--border); border-radius: 8px; padding: 12px 12px 6px; position: relative; min-width: 0; }
+.chart h3 { font-size: 13.5px; margin: 0 0 2px; font-weight: 650; }
+.chart .sub { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+.legend i.line { height: 0; border-top: 2px solid; border-radius: 0; width: 16px; }
+.legend i.line.dash { border-top-style: dashed; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart svg text { fill: var(--muted); font-size: 11px; font-family: var(--font); }
+.tip {
+  position: absolute; pointer-events: none; z-index: 5; display: none;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.15); padding: 7px 9px; font-size: 12px; min-width: 190px;
+}
+.tip b { display: block; margin-bottom: 4px; }
+.tip .row { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+.tip .row span:first-child { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.tip .row span:last-child { font-variant-numeric: tabular-nums; }
+.tip i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+/* ---------- Onglets ---------- */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 10px; overflow-x: auto; }
+.tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 12px; color: var(--muted); white-space: nowrap; }
+.tabs button[aria-selected=true] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; font-size: 13px; }
+.toolbar label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.tablewrap { overflow: auto; max-height: 70vh; border: 1px solid var(--border); border-radius: 8px; }
+table.data { border-collapse: separate; border-spacing: 0; font-size: 12.5px; width: 100%; }
+table.data th, table.data td { padding: 5px 9px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--border); }
+table.data thead th {
+  position: sticky; top: 0; z-index: 2; background: var(--panel); font-weight: 600;
+  white-space: normal; min-width: 92px; vertical-align: bottom; font-size: 12px;
+}
+table.data th:first-child, table.data td:first-child { position: sticky; left: 0; background: var(--bg); z-index: 1; text-align: left; }
+table.data thead th:first-child { z-index: 3; background: var(--panel); min-width: 64px; }
+table.data .reel { background: color-mix(in srgb, var(--s3) 6%, transparent); }
+table.data thead th.reel { background: color-mix(in srgb, var(--s3) 14%, var(--panel)); }
+table.data.hide-reel .reel { display: none; }
+tr.yr td { background: var(--panel2) !important; font-weight: 600; cursor: pointer; text-align: left; }
+tr.yr td .caret { display: inline-block; width: 1em; transition: transform .15s; }
+tbody.closed tr.yr .caret { transform: rotate(-90deg); }
+tbody.closed tr:not(.yr) { display: none; }
+table.data tfoot td { position: sticky; bottom: 0; background: var(--panel); font-weight: 650; border-top: 1px solid var(--fg); }
+
+/* ---------- Rappels théoriques ---------- */
+.theory { max-width: 820px; font-size: 14px; }
+.theory h3 { font-size: 15px; margin: 22px 0 8px; }
+.theory h4 { font-size: 14px; margin: 18px 0 6px; }
+.theory a { color: var(--accent); }
+.theory table { border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+.theory table td, .theory table th { border: 1px solid var(--border); padding: 4px 8px; text-align: center; }
+.theory .katex-display { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+.theory em.note { color: var(--muted); }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ===================== Paramètres ===================== -->
+  <aside>
+    <h1>Échéancier de prêt</h1>
+    <div class="banner" id="banner" hidden></div>
+    <fieldset id="fs">
+      <div class="params">
+        <div class="field">
+          <label for="capital">Capital emprunté (€)</label>
+          <input id="capital" type="number" min="0" step="1000" value="100000" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="duree">Durée (années)</label>
+          <input id="duree" type="number" min="1" max="50" step="1" value="25" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="taux">Taux annuel (%)</label>
+          <input id="taux" type="number" min="0" step="0.05" value="3.75" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="inflation">Inflation annuelle moyenne (%)</label>
+          <input id="inflation" type="number" min="-10" max="50" step="0.1" value="2" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label for="periodicite">Périodicité des échéances</label>
+          <select id="periodicite">
+            <option value="12">Mensuelle (12 / an)</option>
+            <option value="4">Trimestrielle (4 / an)</option>
+            <option value="2">Semestrielle (2 / an)</option>
+            <option value="1">Annuelle (1 / an)</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl">Type d'amortissement</span>
+        <div class="seg">
+          <label><input type="radio" name="type" value="annuite" checked> Annuités constantes</label>
+          <label><input type="radio" name="type" value="amortissement"> Amortissement constant</label>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl">Calcul du taux périodique</span>
+        <div class="seg">
+          <label><input type="radio" name="methode" value="proportionnel" checked> Proportionnel T/n (usage bancaire)</label>
+          <label><input type="radio" name="methode" value="equivalent"> Équivalent (1+T)<sup>1/n</sup> − 1</label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="notes">Remarques (banque, objet du prêt…)</label>
+        <textarea id="notes" placeholder="Texte libre enregistré avec la note"></textarea>
+      </div>
+    </fieldset>
+    <div class="btns">
+      <button class="primary" id="btnCsv" type="button">Télécharger l'échéancier (CSV)</button>
+      <button id="btnCopy" type="button">Copier le CSV</button>
+    </div>
+    <div class="hint" id="hint"></div>
+  </aside>
+
+  <!-- ===================== Résultats ===================== -->
+  <main>
+    <h2>Résumé</h2>
+    <div class="cards" id="cards"></div>
+    <table class="resume" id="resume"></table>
+
+    <div class="charts">
+      <div class="chart" id="chart1">
+        <h3>Répartition annuelle des versements</h3>
+        <div class="sub">Euros versés chaque année ; ligne : même total en euros constants</div>
+        <div class="legend"></div><svg></svg><div class="tip"></div>
+      </div>
+      <div class="chart" id="chart2">
+        <h3>Capital restant dû en fin d'année</h3>
+        <div class="sub">Nominal et en euros constants (pouvoir d'achat à la date du prêt)</div>
+        <div class="legend"></div><svg></svg><div class="tip"></div>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="periodes">Tableau des échéances</button>
+      <button role="tab" aria-selected="false" data-tab="annees">Synthèse annuelle</button>
+      <button role="tab" aria-selected="false" data-tab="theorie">Rappels théoriques</button>
+    </div>
+
+    <section id="tab-periodes">
+      <div class="toolbar">
+        <label><input type="checkbox" id="chkReel" checked> Colonnes en euros constants</label>
+        <button type="button" id="btnOpen">Tout déplier</button>
+        <button type="button" id="btnClose">Tout replier</button>
+      </div>
+      <div class="tablewrap"><table class="data" id="tabPeriodes"></table></div>
+    </section>
+    <section id="tab-annees" hidden>
+      <div class="toolbar">
+        <label><input type="checkbox" id="chkReel2" checked> Colonnes en euros constants</label>
+      </div>
+      <div class="tablewrap"><table class="data" id="tabAnnees"></table></div>
+    </section>
+    <section id="tab-theorie" hidden>
+      <div class="theory" id="theory">
+<h3>Amortissement d'un emprunt</h3>
+<p>L'<strong>amortissement d'un <a href="https://fr.wikipedia.org/wiki/Emprunt_(finance)" target="_blank" rel="noopener">emprunt</a></strong> (<a href="https://fr.wikipedia.org/wiki/Bancaire" target="_blank" rel="noopener">bancaire</a> ou <a href="https://fr.wikipedia.org/wiki/Obligation_(finance)" target="_blank" rel="noopener">obligataire</a>) est la partie du <a href="https://fr.wikipedia.org/wiki/Capital" target="_blank" rel="noopener">capital</a> qui est remboursée à chaque <a href="https://fr.wikipedia.org/wiki/%C3%89ch%C3%A9ance_(finance)" target="_blank" rel="noopener">échéance</a> périodique (par exemple chaque mois).</p>
+<p>Ce paiement se fait en même temps que celui des <a href="https://fr.wikipedia.org/wiki/Int%C3%A9r%C3%AAt_(finance)" target="_blank" rel="noopener">intérêts</a> dus pour la même période. Le versement total (amortissement + intérêts) à chaque échéance est dénommé <a href="https://fr.wikipedia.org/wiki/Annuit%C3%A9" target="_blank" rel="noopener">annuité</a> (terme générique), ou <a href="https://fr.wikipedia.org/wiki/Mensualit%C3%A9" target="_blank" rel="noopener">mensualité</a>.</p>
+<p>Il y a deux principales formules possibles d'amortissement : amortissement constant ou annuité constante.</p>
+<ul>
+<li>En cas d'amortissement constant, le paiement effectué diminuera à chaque période d'un même montant équivalent aux intérêts calculés sur l'amortissement.</li>
+<li>En cas d'annuité constante, l'amortissement augmentera d'un montant croissant équivalent aux <a href="https://fr.wikipedia.org/wiki/Int%C3%A9r%C3%AAts_compos%C3%A9s" target="_blank" rel="noopener">intérêts composés</a> calculés sur l'amortissement de la période précédente.</li>
+</ul>
+<p>L'amortissement peut aussi être <em>in fine</em>, ce qui consiste à régler les intérêts tout au long du prêt puis de rembourser le capital à échéance. Ceci peut être utilisé pour financer la production d'une commande spéciale d'un client, le règlement du prix de vente permettant ensuite de rembourser l'emprunt.</p>
+
+<h3>Amortissement d'un prêt à taux fixe</h3>
+<p>Le capital emprunté étant \(K=K_0\), le capital restant dû après \(k\) annuités est noté \(K_k\). \(K_N=0\) puisque après le paiement de la \(N\)-ième et dernière annuité le prêt est totalement remboursé.</p>
+<div style="overflow-x:auto"><table>
+<tr><th>Échéances</th><th>0</th><th>1</th><th>2</th><th>…</th><th>k</th><th>…</th><th>N</th></tr>
+<tr><th>Restant dû</th><td>\(K_0=K\)</td><td>\(K_1\)</td><td>\(K_2\)</td><td>…</td><td>\(K_k\)</td><td>…</td><td>\(K_N=0\)</td></tr>
+<tr><th>Intérêts</th><td></td><td>\(I_1=r K_0\)</td><td>\(I_2=r K_1\)</td><td>…</td><td>\(I_k=r K_{k-1}\)</td><td>…</td><td>\(I_N=r K_{N-1}\)</td></tr>
+<tr><th>Amortissements</th><td></td><td>\(R_1\)</td><td>\(R_2\)</td><td>…</td><td>\(R_k\)</td><td>…</td><td>\(R_N\)</td></tr>
+<tr><th>Annuités</th><td></td><td>\(A_1\)</td><td>\(A_2\)</td><td>…</td><td>\(A_k\)</td><td>…</td><td>\(A_N\)</td></tr>
+</table></div>
+<p>\(r\) étant le taux d'intérêt de la période. L'amortissement est la partie du prêt remboursée à chaque annuité :</p>
+<p>$$A_k = R_k + I_k$$</p>
+<p>(Annuité = Amortissement + Intérêts)</p>
+
+<h4>Amortissement constant</h4>
+<p>$$R_1 = R_2 = \ldots = R_N = R \quad\Rightarrow\quad R = \frac{K}{N}$$</p>
+
+<h4>Annuités constantes</h4>
+<p>\(A_1 = A_2 = \ldots = A_N = A\). Après chaque annuité :</p>
+<p>$$K_1=K(1+r)-A$$ $$K_2=K_1(1+r)-A=K(1+r)^2-A(1+r)-A$$ $$K_3=K_2(1+r)-A=K(1+r)^3-A(1+r)^2-A(1+r)-A$$</p>
+<p>et ce jusqu'à la \(N\)-ième et dernière annuité :</p>
+<p>$$K_N=K(1+r)^N-A\sum_{k=0}^{N-1}{(1+r)^k}$$</p>
+<p>Comme \(K_N=0\) et que \(\sum_{k=0}^{N-1}{(1+r)^k}=\frac{(1+r)^N-1}{r}\), alors</p>
+<p>$$A=K\frac{r(1+r)^N}{(1+r)^N-1} = K\frac{r}{1-(1+r)^{-N}}$$</p>
+<p>On arrive au même résultat en remarquant que la suite \((K_n)\) est <a href="https://fr.wikipedia.org/wiki/Suite_arithm%C3%A9tico-g%C3%A9om%C3%A9trique" target="_blank" rel="noopener">arithmético-géométrique</a>.</p>
+<p>En utilisant la <a href="https://fr.wikipedia.org/wiki/R%C3%A8gle_de_L%27H%C3%B4pital" target="_blank" rel="noopener">règle de L'Hôpital</a> on vérifie que</p>
+<p>$$\lim_{r\rightarrow 0^+} \frac{r}{1-(1+r)^{-N}} = \lim_{r\rightarrow 0^+} \frac{1}{N(1+r)^{-N-1}}=\frac{1}{N}$$</p>
+<p>donc pour un taux nul la formule se réduit bien à \(A=K/N\) (cas traité explicitement dans le code).</p>
+
+<h4>Mensualités (et autres périodicités)</h4>
+<p>Pour un <a href="https://fr.wikipedia.org/wiki/Taux_d%27int%C3%A9r%C3%AAt" target="_blank" rel="noopener">taux d'intérêt</a> fixe annuel \(T\), le taux mensuel équivalent \(r_m\) doit être tel que \(1+T=(1+r_m)^{12}\), soit</p>
+<p>$$r_m = \sqrt[12]{1+T}-1$$</p>
+<p>Pour des taux faibles on utilise l'approximation \(r_m = T/12\), qui est généralement l'usage bancaire. La mensualité \(M\) d'un prêt de capital \(K\) remboursé en \(12N\) mensualités vaut alors</p>
+<p>$$M = K\frac{r_m}{1 - (1+r_m)^{-12 N}}$$</p>
+<p>Plus généralement, avec \(n\) échéances par an (12, 4, 2 ou 1) sur \(N\) années, et \(r = T/n\) (proportionnel) ou \(r = (1+T)^{1/n}-1\) (équivalent) — choix proposé dans le panneau de paramètres :</p>
+<p>$$E = \dfrac{K \times r}{ 1 - (1 + r)^{ - n N}}$$</p>
+<p>où \(E\) est le montant de chaque échéance et \(K\) le capital emprunté.</p>
+
+<h3>Prise en compte de l'inflation</h3>
+<p>Un prêt est défini en euros <strong>nominaux</strong> : la banque reçoit les mêmes montants quoi qu'il arrive aux prix. Avec une inflation annuelle \(\pi\) supposée constante, un euro versé dans \(t\) années n'a plus que le pouvoir d'achat de \((1+\pi)^{-t}\) euro d'aujourd'hui. L'échéance \(E_k\), versée à la fin de la période \(k\) (soit \(t = k/n\) années), vaut donc en <strong>euros constants</strong> (de la date du prêt) :</p>
+<p>$$d_k = (1+\pi)^{-k/n} \qquad E_k^{\text{r}} = d_k E_k$$</p>
+<p>Les mêmes facteurs s'appliquent aux intérêts, au capital remboursé et au capital restant dû \(K_k\). Avec des annuités constantes, l'échéance nominale est fixe mais sa valeur réelle diminue : la charge du prêt s'allège au fil du temps.</p>
+<p>Le <strong>coût réel du crédit</strong> est la somme des échéances en euros constants moins le capital emprunté :</p>
+<p>$$C^{\text{r}} = \sum_{k=1}^{nN} d_k E_k - K$$</p>
+<p>Il est plus faible que le coût nominal et peut même devenir négatif si l'inflation dépasse le taux du prêt.</p>
+<p>Le <strong>taux réel</strong> \(\rho\) se déduit du taux annuel effectif \(T_e = (1+r)^n - 1\) par la relation de <a href="https://fr.wikipedia.org/wiki/%C3%89quation_de_Fisher" target="_blank" rel="noopener">Fisher</a> :</p>
+<p>$$1+\rho = \frac{1+T_e}{1+\pi} \qquad \text{soit approximativement} \qquad \rho \approx T_e - \pi$$</p>
+<p>Pour la méthode proportionnelle \(r = T/n\), on a \(T_e = (1+T/n)^n - 1\), légèrement supérieur à \(T\).</p>
+<p><em class="note">Hypothèse simplificatrice : inflation constante sur toute la durée du prêt. En pratique elle varie d'une année à l'autre.</em></p>
+<p><em class="note">Texte des rappels adapté de l'article Wikipédia « Amortissement (finance) ».</em></p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="lib/component-relay.js"></script>
+<script src="lib/katex/katex.min.js" defer></script>
+<script src="lib/katex/auto-render.min.js" defer></script>
+<script>
+"use strict";
+/* =========================================================================
+   1. Calcul (indépendant de l'interface) — portage direct du code Python
+   ========================================================================= */
+const ANNUITE_CSTE = "annuite", AMORT_CSTE = "amortissement";
+const TAUX_PROP = "proportionnel", TAUX_ACTU = "equivalent";
+const DEFAUTS = { capital: 100000, duree: 25, taux: 3.75, inflation: 2, periodicite: 12,
+                  typeAmort: ANNUITE_CSTE, methode: TAUX_PROP };
+
+function tauxPeriodique(T, n, methode) {           // taux appliqué à chaque période
+  return methode === TAUX_PROP ? T / n : Math.pow(1 + T, 1 / n) - 1;
+}
+function montantAnnuite(K, r, N) {                 // A = K r / (1 - (1+r)^-N) ; K/N si r = 0
+  return r === 0 ? K / N : K * r / (1 - Math.pow(1 + r, -N));
+}
+function tauxReelAnnuel(tauxPct, n, methode, inflationPct) {   // relation de Fisher
+  const r = tauxPeriodique(tauxPct / 100, n, methode);
+  const te = Math.pow(1 + r, n) - 1;
+  return (1 + te) / (1 + inflationPct / 100) - 1;
+}
+
+/* Tableau d'amortissement complet, une ligne par échéance. Les champs « reel »
+   sont les montants nominaux × d_k = (1+pi)^(-k/n) (euros de la date du prêt). */
+function calculEcheancier(p) {
+  const n = p.periodicite, N = Math.round(p.duree * n);
+  const r = tauxPeriodique(p.taux / 100, n, p.methode);
+  const A = montantAnnuite(p.capital, r, N);
+  const pi = p.inflation / 100;
+  let K = p.capital, cumulReel = 0;
+  const lignes = [];
+  for (let k = 1; k <= N; k++) {
+    const I = K * r;                                             // I_k = r K_{k-1}
+    let R = p.typeAmort === ANNUITE_CSTE ? A - I : p.capital / N; // R_k
+    if (k === N) R = K;                                          // solde exact à la dernière échéance
+    const E = I + R;
+    const d = Math.pow(1 + pi, -k / n);                          // facteur de déflation
+    const fin = Math.max(K - R, 0);
+    cumulReel += E * d;
+    lignes.push({
+      annee: Math.floor((k - 1) / n) + 1, periode: k,
+      crdDebut: K, interets: I, capital: R, echeance: E,
+      pctI: E ? 100 * I / E : 0, pctR: E ? 100 * R / E : 0, crdFin: fin,
+      d, echeanceR: E * d, interetsR: I * d, capitalR: R * d, crdFinR: fin * d, cumulR: cumulReel,
+    });
+    K -= R;
+  }
+  return lignes;
+}
+
+function syntheseAnnuelle(lignes) {
+  const map = new Map();
+  for (const l of lignes) {
+    let a = map.get(l.annee);
+    if (!a) map.set(l.annee, a = { annee: l.annee, interets: 0, capital: 0, total: 0, crdFin: 0,
+                                   totalR: 0, interetsR: 0, crdFinR: 0 });
+    a.interets += l.interets; a.capital += l.capital; a.total += l.echeance;
+    a.totalR += l.echeanceR; a.interetsR += l.interetsR;
+    a.crdFin = l.crdFin; a.crdFinR = l.crdFinR;                   // « last »
+  }
+  const an = [...map.values()];
+  let ci = 0, cc = 0, cr = 0;
+  for (const a of an) { a.interetsCum = (ci += a.interets); a.capitalCum = (cc += a.capital); a.totalRCum = (cr += a.totalR); }
+  return an;
+}
+
+/* Format français : 1 234,56 */
+const NF = {};
+function fr(x, dec = 2) {
+  const f = NF[dec] || (NF[dec] = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: dec, maximumFractionDigits: dec }));
+  return f.format(Math.abs(x) < 0.5 * Math.pow(10, -dec) ? 0 : x);
+}
+const eur = (x, dec = 2) => fr(x, dec) + " €";
+
+/* =========================================================================
+   2. État, lecture / écriture de la note
+   ========================================================================= */
+const $ = (s) => document.querySelector(s);
+const el = {
+  capital: $("#capital"), duree: $("#duree"), taux: $("#taux"), inflation: $("#inflation"),
+  periodicite: $("#periodicite"), notes: $("#notes"), fs: $("#fs"), banner: $("#banner"), hint: $("#hint"),
+};
+let params = { ...DEFAUTS };
+let notesTxt = "";
+let lignes = [], annuel = [];
+
+function lireFormulaire() {
+  const num = (e, def) => { const v = parseFloat(String(e.value).replace(",", ".")); return Number.isFinite(v) ? v : def; };
+  return {
+    capital: Math.max(0, num(el.capital, params.capital)),
+    duree: Math.min(50, Math.max(1, Math.round(num(el.duree, params.duree)))),
+    taux: Math.max(0, num(el.taux, params.taux)),
+    inflation: Math.min(50, Math.max(-10, num(el.inflation, params.inflation))),
+    periodicite: parseInt(el.periodicite.value, 10) || 12,
+    typeAmort: document.querySelector("input[name=type]:checked").value,
+    methode: document.querySelector("input[name=methode]:checked").value,
+  };
+}
+function ecrireFormulaire(p) {
+  el.capital.value = p.capital; el.duree.value = p.duree; el.taux.value = p.taux;
+  el.inflation.value = p.inflation; el.periodicite.value = String(p.periodicite);
+  document.querySelector(`input[name=type][value=${p.typeAmort}]`).checked = true;
+  document.querySelector(`input[name=methode][value=${p.methode}]`).checked = true;
+  el.notes.value = notesTxt;
+}
+
+/* La note contient un JSON : { type, version, params, notes }.
+   Un texte non reconnu n'est jamais perdu : il est repris dans « Remarques ». */
+function analyserTexteNote(texte) {
+  if (!texte || !texte.trim()) return { params: { ...DEFAUTS }, notes: "", info: null };
+  try {
+    const o = JSON.parse(texte);
+    if (o && o.type === "echeancier-pret" && o.params) {
+      const p = { ...DEFAUTS, ...o.params };
+      if (![12, 4, 2, 1].includes(+p.periodicite)) p.periodicite = 12;
+      p.periodicite = +p.periodicite;
+      if (![ANNUITE_CSTE, AMORT_CSTE].includes(p.typeAmort)) p.typeAmort = ANNUITE_CSTE;
+      if (![TAUX_PROP, TAUX_ACTU].includes(p.methode)) p.methode = TAUX_PROP;
+      return { params: p, notes: typeof o.notes === "string" ? o.notes : "", info: null };
+    }
+  } catch (_) { /* texte libre */ }
+  return { params: { ...DEFAUTS }, notes: texte,
+           info: "Cette note contenait du texte ordinaire : il a été repris dans « Remarques ». Il sera enregistré avec les paramètres du prêt à la première modification." };
+}
+function serialiser() {
+  return JSON.stringify({ type: "echeancier-pret", version: 1, params, notes: notesTxt }, null, 2);
+}
+function apercu() {
+  if (!lignes.length) return "Échéancier de prêt";
+  const per = { 12: "mensualité", 4: "trimestrialité", 2: "semestrialité", 1: "annuité" }[params.periodicite];
+  const e = params.typeAmort === ANNUITE_CSTE ? eur(lignes[0].echeance) : `${eur(lignes[0].echeance)} → ${eur(lignes.at(-1).echeance)}`;
+  return `Prêt de ${eur(params.capital, 0)} sur ${params.duree} ans à ${fr(params.taux)} % — ${per} ${e}`;
+}
+
+/* ---------- Relais Standard Notes ---------- */
+const STANDALONE = window.parent === window;
+let relay = null, noteCourante = null;
+let dernierTexteEnregistre = null;   // texte brut de la note (détection de l'écho de nos sauvegardes)
+let dernierEtat = null;              // état sérialisé déjà présent dans la note (évite les écritures inutiles)
+
+function enregistrer() {
+  if (!relay || !noteCourante || el.fs.disabled) return;   // jamais d'écriture sur une note verrouillée
+  const texte = serialiser();
+  if (texte === dernierEtat) return;
+  dernierEtat = dernierTexteEnregistre = texte;
+  const note = noteCourante;
+  relay.saveItemWithPresave(note, () => {
+    note.content.text = texte;
+    note.content.preview_plain = apercu();
+    note.content.preview_html = null;
+  });
+}
+
+function appliquerVerrou(note) {
+  const verrou = relay && note ? !!relay.getItemAppDataValue(note, "locked") : false;
+  el.fs.disabled = verrou;
+  if (verrou) montrerBandeau("Note verrouillée : paramètres en lecture seule.");
+}
+function montrerBandeau(txt) { el.banner.textContent = txt; el.banner.hidden = !txt; }
+
+if (!STANDALONE && window.ComponentRelay) {
+  relay = new ComponentRelay({
+    targetWindow: window,
+    options: { coallesedSaving: true, coallesedSavingDelay: 400 },
+    onReady: () => { detecterTheme(); },
+    onThemesChange: () => { setTimeout(detecterTheme, 60); },
+  });
+  relay.streamContextItem((note) => {
+    const changementDeNote = !noteCourante || noteCourante.uuid !== note.uuid;
+    noteCourante = note;
+    if (note.isMetadataUpdate && !changementDeNote) { appliquerVerrou(note); return; }
+    const texte = note.content.text || "";
+    if (!changementDeNote && texte === dernierTexteEnregistre) { appliquerVerrou(note); return; } // écho de notre propre sauvegarde
+    const res = analyserTexteNote(texte);
+    params = res.params; notesTxt = res.notes;
+    dernierTexteEnregistre = texte;
+    dernierEtat = res.info ? null : serialiser();
+    montrerBandeau(res.info || "");
+    ecrireFormulaire(params);
+    appliquerVerrou(note);
+    recalculer();
+  });
+} else {
+  el.hint.textContent = "Mode autonome (hors Standard Notes) : rien n'est enregistré.";
+}
+
+/* =========================================================================
+   3. Sorties
+   ========================================================================= */
+function recalculer() {
+  lignes = params.capital > 0 ? calculEcheancier(params) : [];
+  annuel = syntheseAnnuelle(lignes);
+  rendreResume(); rendreGraphiques(); rendreTableauPeriodes(); rendreTableauAnnees();
+}
+
+function rendreResume() {
+  if (!lignes.length) { $("#cards").innerHTML = ""; $("#resume").innerHTML = "<tr><td>Saisissez un capital supérieur à 0.</td><td></td></tr>"; return; }
+  const totI = lignes.reduce((s, l) => s + l.interets, 0);
+  const totR = lignes.reduce((s, l) => s + l.capital, 0);
+  const totReel = lignes.reduce((s, l) => s + l.echeanceR, 0);
+  const coutReel = totReel - params.capital;
+  const tReel = tauxReelAnnuel(params.taux, params.periodicite, params.methode, params.inflation);
+  const ech = params.typeAmort === ANNUITE_CSTE
+    ? `<strong>${eur(lignes[0].echeance)}</strong> (constante)`
+    : `de <strong>${eur(lignes[0].echeance)}</strong> à <strong>${eur(lignes.at(-1).echeance)}</strong> (décroissante)`;
+
+  $("#cards").innerHTML = [
+    ["Échéance", params.typeAmort === ANNUITE_CSTE ? eur(lignes[0].echeance) : eur(lignes[0].echeance), params.typeAmort === ANNUITE_CSTE ? "constante" : "1re échéance, puis décroissante"],
+    ["Coût des intérêts", eur(totI, 0), `${fr(100 * totI / (totR || 1))} % du capital`],
+    ["Coût réel du crédit", eur(coutReel, 0), `en € constants, inflation ${fr(params.inflation)} %`],
+    ["Taux réel annuel", fr(100 * tReel) + " %", "relation de Fisher"],
+  ].map(([k, v, s]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+
+  const rows = [
+    ["Échéance", ech],
+    ["Nombre d'échéances", String(lignes.length)],
+    ["Coût total des intérêts", `<strong>${eur(totI)}</strong>`],
+    ["Total remboursé", eur(totI + totR)],
+    ["Intérêts / capital", `${fr(totR ? 100 * totI / totR : 0)} %`],
+    null,
+    ["Total remboursé en € constants", eur(totReel)],
+    ["Coût réel du crédit (€ constants − capital)", `<strong>${eur(coutReel)}</strong>`],
+    ["Dernière échéance en € constants", eur(lignes.at(-1).echeanceR)],
+    ["Taux réel annuel (Fisher)", `<strong>${fr(100 * tReel)} %</strong>`],
+  ];
+  $("#resume").innerHTML = rows.map((r) => r === null
+    ? `<tr class="sep"><td colspan="2">Avec inflation de ${fr(params.inflation)} % / an</td></tr>`
+    : `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("");
+}
+
+/* ---------- Tableau des échéances (groupé par année, repliable) ---------- */
+const COLS_P = [
+  ["crdDebut", "Capital restant dû (début)", 2], ["interets", "Intérêts", 2], ["capital", "Capital remboursé", 2],
+  ["echeance", "Échéance", 2], ["pctI", "% intérêts", 2, "pct"], ["pctR", "% capital", 2, "pct"],
+  ["crdFin", "Capital restant dû (fin)", 2],
+  ["d", "Facteur de déflation", 4, "reel"], ["echeanceR", "Échéance (€ constants)", 2, "reel"],
+  ["interetsR", "Intérêts (€ constants)", 2, "reel"], ["capitalR", "Capital remboursé (€ constants)", 2, "reel"],
+  ["crdFinR", "Capital restant dû fin (€ constants)", 2, "reel"], ["cumulR", "Total versé cumulé (€ constants)", 2, "reel"],
+];
+const anneesFermees = new Set();
+function cellule(v, c) {
+  const txt = c[3] === "pct" ? fr(v, c[2]) + " %" : fr(v, c[2]);
+  return `<td${c[3] === "reel" ? ' class="reel"' : ""}>${txt}</td>`;
+}
+function rendreTableauPeriodes() {
+  const t = $("#tabPeriodes");
+  const head = `<thead><tr><th>Période</th>${COLS_P.map((c) => `<th${c[3] === "reel" ? ' class="reel"' : ""}>${c[1]}</th>`).join("")}</tr></thead>`;
+  const parts = [head];
+  for (const a of annuel) {
+    const rows = lignes.filter((l) => l.annee === a.annee);
+    parts.push(`<tbody data-annee="${a.annee}"${anneesFermees.has(a.annee) ? ' class="closed"' : ""}>`);
+    parts.push(`<tr class="yr"><td colspan="${COLS_P.length + 1}"><span class="caret">▾</span> Année ${a.annee} · ${rows.length} échéance${rows.length > 1 ? "s" : ""} · versé ${eur(a.total)} dont intérêts ${eur(a.interets)}</td></tr>`);
+    for (const l of rows) parts.push(`<tr><td>${l.periode}</td>${COLS_P.map((c) => cellule(l[c[0]], c)).join("")}</tr>`);
+    parts.push("</tbody>");
+  }
+  t.innerHTML = parts.join("");
+}
+$("#tabPeriodes").addEventListener("click", (e) => {
+  const tr = e.target.closest("tr.yr"); if (!tr) return;
+  const tb = tr.parentElement, a = +tb.dataset.annee;
+  tb.classList.toggle("closed");
+  tb.classList.contains("closed") ? anneesFermees.add(a) : anneesFermees.delete(a);
+});
+$("#btnOpen").onclick = () => { anneesFermees.clear(); document.querySelectorAll("#tabPeriodes tbody").forEach((b) => b.classList.remove("closed")); };
+$("#btnClose").onclick = () => { annuel.forEach((a) => anneesFermees.add(a.annee)); document.querySelectorAll("#tabPeriodes tbody").forEach((b) => b.classList.add("closed")); };
+
+/* ---------- Synthèse annuelle ---------- */
+const COLS_A = [
+  ["interets", "Intérêts de l'année"], ["capital", "Capital remboursé dans l'année"], ["total", "Total versé dans l'année"],
+  ["crdFin", "Capital restant dû (fin d'année)"], ["interetsCum", "Intérêts cumulés"], ["capitalCum", "Capital cumulé"],
+  ["totalR", "Total versé (€ constants)", "reel"], ["interetsR", "Intérêts (€ constants)", "reel"],
+  ["crdFinR", "Capital restant dû fin d'année (€ constants)", "reel"], ["totalRCum", "Total versé cumulé (€ constants)", "reel"],
+];
+function rendreTableauAnnees() {
+  const cls = (c) => (c[2] === "reel" ? ' class="reel"' : "");
+  const somme = (k) => annuel.reduce((s, a) => s + a[k], 0);
+  const totaux = { interets: somme("interets"), capital: somme("capital"), total: somme("total"), totalR: somme("totalR"), interetsR: somme("interetsR") };
+  $("#tabAnnees").innerHTML =
+    `<thead><tr><th>Année</th>${COLS_A.map((c) => `<th${cls(c)}>${c[1]}</th>`).join("")}</tr></thead><tbody>` +
+    annuel.map((a) => `<tr><td>${a.annee}</td>${COLS_A.map((c) => `<td${cls(c)}>${fr(a[c[0]])}</td>`).join("")}</tr>`).join("") +
+    `</tbody><tfoot><tr><td>Total</td>${COLS_A.map((c) => `<td${cls(c)}>${c[0] in totaux ? fr(totaux[c[0]]) : ""}</td>`).join("")}</tr></tfoot>`;
+}
+function majColonnesReel() {
+  $("#tabPeriodes").classList.toggle("hide-reel", !$("#chkReel").checked);
+  $("#tabAnnees").classList.toggle("hide-reel", !$("#chkReel2").checked);
+}
+$("#chkReel").onchange = () => { $("#chkReel2").checked = $("#chkReel").checked; majColonnesReel(); };
+$("#chkReel2").onchange = () => { $("#chkReel").checked = $("#chkReel2").checked; majColonnesReel(); };
+if (window.matchMedia("(max-width: 760px)").matches) { $("#chkReel").checked = $("#chkReel2").checked = false; majColonnesReel(); }
+
+/* ---------- Onglets ---------- */
+let theorieRendue = false;
+document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+  for (const id of ["periodes", "annees", "theorie"]) $("#tab-" + id).hidden = id !== b.dataset.tab;
+  if (b.dataset.tab === "theorie" && !theorieRendue && window.renderMathInElement) {
+    renderMathInElement($("#theory"), {
+      delimiters: [{ left: "$$", right: "$$", display: true }, { left: "\\(", right: "\\)", display: false }],
+      throwOnError: false,
+    });
+    theorieRendue = true;
+  }
+}));
+
+/* =========================================================================
+   4. Graphiques SVG (un seul axe par graphique, survol par année)
+   ========================================================================= */
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function nice(max) {
+  if (max <= 0) return { step: 1, top: 1 };
+  const raw = max / 5, p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * p).find((s) => s >= raw);
+  return { step, top: Math.ceil(max / step) * step };
+}
+function kfmt(v) { return Math.abs(v) >= 1000 ? fr(v / 1000, v % 1000 ? 1 : 0).replace(/,0$/, "") + " k€" : fr(v, 0) + " €"; }
+
+function dessiner(boxId, cfg) {
+  const box = document.getElementById(boxId);
+  const svg = box.querySelector("svg"), tip = box.querySelector(".tip");
+  box.querySelector(".legend").innerHTML = cfg.series.map((s) =>
+    `<span><i class="${s.type === "line" ? "line" + (s.dash ? " dash" : "") : ""}" style="${s.type === "line" ? "border-color" : "background"}:var(${s.color})"></i>${s.name}</span>`).join("");
+  const W = Math.max(280, svg.clientWidth || box.clientWidth - 24), H = 230;
+  const m = { t: 8, r: 10, b: 24, l: 52 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const cats = cfg.categories, nC = cats.length;
+  if (!nC) { svg.innerHTML = ""; return; }
+  const bars = cfg.series.filter((s) => s.type === "bar"), lines = cfg.series.filter((s) => s.type === "line");
+  let max = 0;
+  for (let i = 0; i < nC; i++) {
+    max = Math.max(max, bars.reduce((s, b) => s + b.values[i], 0));
+    for (const l of lines) max = Math.max(max, l.values[i]);
+  }
+  const { step, top } = nice(max * 1.04);
+  const y = (v) => m.t + ih - (v / top) * ih;
+  const band = iw / nC, bw = Math.max(1.5, Math.min(28, band * 0.68));
+  const cx = (i) => m.l + band * (i + 0.5);
+  const out = [];
+  out.push(`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`);
+  for (let v = 0; v <= top + 1e-9; v += step) {
+    out.push(`<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)" stroke-width="1"/>`);
+    out.push(`<text x="${m.l - 6}" y="${y(v) + 3.5}" text-anchor="end">${kfmt(v)}</text>`);
+  }
+  const every = Math.ceil(nC / Math.max(2, Math.floor(iw / 34)));
+  cats.forEach((c, i) => { if (i % every === 0 || i === nC - 1 && (i % every) > every / 2) out.push(`<text x="${cx(i)}" y="${H - 6}" text-anchor="middle">${c}</text>`); });
+  // barres empilées : 2 px de séparation, extrémité haute arrondie (4 px)
+  const gap = bw > 6 ? 2 : (bw > 3 ? 1 : 0);
+  for (let i = 0; i < nC; i++) {
+    let base = 0;
+    const visibles = bars.filter((b) => b.values[i] > 0);
+    visibles.forEach((b, j) => {
+      const v = b.values[i];
+      const y0 = y(base), y1 = y(base + v) + (j > 0 ? gap : 0);
+      base += v;
+      const h = y0 - y1; if (h <= 0.2) return;
+      const x = cx(i) - bw / 2, isTop = j === visibles.length - 1, rr = isTop ? Math.min(4, bw / 2, h) : 0;
+      out.push(`<path fill="var(${b.color})" d="M${x},${y0} V${y1 + rr} Q${x},${y1} ${x + rr},${y1} H${x + bw - rr} Q${x + bw},${y1} ${x + bw},${y1 + rr} V${y0} Z"/>`);
+    });
+  }
+  for (const l of lines) {
+    const d = l.values.map((v, i) => `${i ? "L" : "M"}${cx(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+    out.push(`<path d="${d}" fill="none" stroke="var(--bg)" stroke-width="4" stroke-linejoin="round"/>`);
+    out.push(`<path d="${d}" fill="none" stroke="var(${l.color})" stroke-width="2" stroke-linejoin="round"${l.dash ? ' stroke-dasharray="6 4"' : ""}/>`);
+  }
+  out.push(`<line class="xh" x1="0" x2="0" y1="${m.t}" y2="${m.t + ih}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="2 3" visibility="hidden"/>`);
+  out.push(`<g class="dots"></g>`);
+  out.push(`<line x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}" stroke="var(--muted)" stroke-width="1"/>`);
+  out.push(`<rect class="hit" x="${m.l}" y="${m.t}" width="${iw}" height="${ih}" fill="transparent"/>`);
+  out.push("</svg>");
+  svg.outerHTML = out.join("");
+  const svg2 = box.querySelector("svg"), xh = svg2.querySelector(".xh"), dots = svg2.querySelector(".dots");
+  const montrer = (clientX) => {
+    const r = svg2.getBoundingClientRect();
+    const sx = (clientX - r.left) * (W / r.width);
+    const i = Math.min(nC - 1, Math.max(0, Math.floor((sx - m.l) / band)));
+    xh.setAttribute("x1", cx(i)); xh.setAttribute("x2", cx(i)); xh.setAttribute("visibility", "visible");
+    dots.innerHTML = lines.map((l) => `<circle cx="${cx(i)}" cy="${y(l.values[i])}" r="4" fill="var(${l.color})" stroke="var(--bg)" stroke-width="2"/>`).join("");
+    tip.innerHTML = `<b>Année ${cats[i]}</b>` + cfg.series.map((s) =>
+      `<div class="row"><span><i style="background:var(${s.color})"></i>${s.name}</span><span>${eur(s.values[i])}</span></div>`).join("") +
+      (cfg.extraTip ? cfg.extraTip(i) : "");
+    tip.style.display = "block";
+    const bx = box.getBoundingClientRect(), px = cx(i) * (r.width / W) + (r.left - bx.left);
+    const tw = tip.offsetWidth;
+    tip.style.left = Math.min(bx.width - tw - 4, Math.max(4, px + 12 + tw > bx.width ? px - tw - 12 : px + 12)) + "px";
+    tip.style.top = (r.top - bx.top + 10) + "px";
+  };
+  const cacher = () => { tip.style.display = "none"; xh.setAttribute("visibility", "hidden"); dots.innerHTML = ""; };
+  const hit = svg2.querySelector(".hit");
+  hit.addEventListener("pointermove", (e) => montrer(e.clientX));
+  hit.addEventListener("pointerdown", (e) => montrer(e.clientX));
+  hit.addEventListener("pointerleave", cacher);
+}
+
+function rendreGraphiques() {
+  const cats = annuel.map((a) => String(a.annee));
+  dessiner("chart1", {
+    categories: cats,
+    series: [
+      { name: "Capital remboursé", type: "bar", color: "--s1", values: annuel.map((a) => a.capital) },
+      { name: "Intérêts", type: "bar", color: "--s2", values: annuel.map((a) => a.interets) },
+      { name: "Total versé (€ constants)", type: "line", color: "--s3", values: annuel.map((a) => a.totalR) },
+    ],
+    extraTip: (i) => `<div class="row"><span>Total versé (nominal)</span><span>${eur(annuel[i].total)}</span></div>`,
+  });
+  dessiner("chart2", {
+    categories: cats,
+    series: [
+      { name: "Capital restant dû", type: "line", color: "--s1", values: annuel.map((a) => a.crdFin) },
+      { name: "Capital restant dû (€ constants)", type: "line", color: "--s2", dash: true, values: annuel.map((a) => a.crdFinR) },
+    ],
+  });
+}
+let rzT = null;
+new ResizeObserver(() => { clearTimeout(rzT); rzT = setTimeout(rendreGraphiques, 80); }).observe(document.querySelector(".charts"));
+
+/* ---------- Thème clair / sombre (déduit du fond du thème Standard Notes) ---------- */
+function detecterTheme() {
+  const c = getComputedStyle(document.body).backgroundColor.match(/\d+(\.\d+)?/g);
+  if (!c) return;
+  const [r, g, b] = c.map(Number);
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  const sombre = lum < 0.45;
+  if ((document.documentElement.dataset.theme === "dark") !== sombre) {
+    document.documentElement.dataset.theme = sombre ? "dark" : "light";
+    rendreGraphiques();
+  }
+}
+
+/* =========================================================================
+   5. Export CSV (mêmes colonnes que le script Python ; « ; » et virgule décimale)
+   ========================================================================= */
+function csv() {
+  const entetes = ["Année", "Période", ...COLS_P.map((c) => c[1])];
+  const num = (v) => String(v).replace(".", ",");
+  const lignesCsv = lignes.map((l) => [l.annee, l.periode, ...COLS_P.map((c) => num(l[c[0]]))].join(";"));
+  return [entetes.join(";"), ...lignesCsv].join("\r\n");
+}
+$("#btnCsv").onclick = () => {
+  const blob = new Blob(["﻿" + csv()], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "echeancier.csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  el.hint.textContent = "Si rien ne se télécharge (application mobile), utilisez « Copier le CSV ».";
+};
+$("#btnCopy").onclick = async () => {
+  const txt = csv();
+  try { await navigator.clipboard.writeText(txt); el.hint.textContent = "CSV copié dans le presse-papiers."; }
+  catch (_) {
+    const ta = document.createElement("textarea"); ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    el.hint.textContent = document.execCommand("copy") ? "CSV copié dans le presse-papiers." : "Copie impossible dans cet environnement.";
+    ta.remove();
+  }
+};
+
+/* =========================================================================
+   6. Liaison formulaire → calcul → enregistrement
+   ========================================================================= */
+function surChangement() {
+  params = lireFormulaire();
+  recalculer();
+  enregistrer();
+}
+for (const e of [el.capital, el.duree, el.taux, el.inflation]) {
+  e.addEventListener("input", () => { if (e.value !== "" && e.checkValidity()) surChangement(); });
+  e.addEventListener("change", () => { ecrireFormulaire(params = lireFormulaire()); recalculer(); enregistrer(); });
+}
+el.periodicite.addEventListener("change", surChangement);
+document.querySelectorAll("input[type=radio]").forEach((r) => r.addEventListener("change", surChangement));
+el.notes.addEventListener("input", () => { notesTxt = el.notes.value; enregistrer(); });
+
+ecrireFormulaire(params);
+recalculer();
+detecterTheme();
+</script>
+</body>
+</html>

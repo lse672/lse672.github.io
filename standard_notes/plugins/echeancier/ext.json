@@ -1,0 +1,10 @@
+{
+  "identifier": "io.github.lse672.echeancier",
+  "name": "Échéancier de prêt",
+  "content_type": "SN|Component",
+  "area": "editor-editor",
+  "version": "1.0.0",
+  "description": "Tableau d'amortissement d'un emprunt (annuités ou amortissement constants, 4 périodicités) avec prise en compte de l'inflation : euros constants, coût réel, taux réel de Fisher.",
+  "latest_url": "https://lse672.github.io/standard_notes/plugins/echeancier/ext.json",
+  "url": "https://lse672.github.io/standard_notes/plugins/echeancier/index.html"
+}
