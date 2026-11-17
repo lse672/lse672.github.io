@@ -1,9 +1,9 @@
 {
-  "identifier": "Standard_Notes_Expense_Flow",
+  "identifier": "io.github.lse672.expense-flow",
   "name": "Expense Flow",
   "description": "Track income and expenses by category and sub-category, with recurring entries and a Sankey diagram of where your money goes.",
   "content_type": "SN|Component",
   "area": "editor-editor",
   "version": "0.1.0",
-  "url": "https://lse672.github.io/Standard_Notes_plugins/Expense_Flow/index.html"
+  "url": "https://lse672.github.io/standard_notes/plugins/expense_flow/index.html"
 }

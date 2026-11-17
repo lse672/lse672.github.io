@@ -1,9 +1,9 @@
 {
-  "identifier": "Standard_Notes_Upcoming_Expenses",
+  "identifier": "io.github.lse672.upcoming_expenses",
   "name": "Upcoming Expenses",
   "description": "Plan future and recurring expenses, see what's due by month, and tick them off when paid.",
   "content_type": "SN|Component",
   "area": "editor-editor",
   "version": "0.1.8",
-  "url": "https://lse672.github.io/Standard_Notes_plugins/Upcoming_Expenses/index.html"
+  "url": "https://lse672.github.io/standard_notes/plugins/upcoming_expenses/index.html"
 }
