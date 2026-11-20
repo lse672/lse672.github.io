@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Starred Todo</title>
+<style>
+  :root {
+    --bg: var(--sn-stylekit-background-color, #ffffff);
+    --fg: var(--sn-stylekit-foreground-color, #1f2328);
+    --muted: var(--sn-stylekit-neutral-color, #8a8f98);
+    --border: var(--sn-stylekit-border-color, #e1e4e8);
+    --panel: var(--sn-stylekit-contrast-background-color, #f5f6f8);
+    --accent: var(--sn-stylekit-info-color, #086dd6);
+    --accent-fg: var(--sn-stylekit-info-contrast-color, #ffffff);
+    --danger: var(--sn-stylekit-danger-color, #cc2128);
+    --star: #f5a623;
+    --radius: 8px;
+    --font: var(--sn-stylekit-sans-serif-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; }
+  button, input, select { font: inherit; color: inherit; }
+  #app { max-width: 900px; margin: 0 auto; padding: 12px; }
+
+  /* Add form */
+  .add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
+  .add input[type=text] { flex: 1 1 220px; min-width: 0; }
+  .add .cat-input { flex: 0 1 150px; }
+  input[type=text], select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; outline: none; }
+  input[type=text]:focus, select:focus { border-color: var(--accent); }
+  .btn { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .btn.small { padding: 4px 9px; font-size: 13px; }
+  .btn.on { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+  /* Stars */
+  .stars { display: inline-flex; gap: 1px; user-select: none; flex: 0 0 auto; }
+  .stars button { background: none; border: none; padding: 0 1px; cursor: pointer; font-size: 18px; line-height: 1; color: var(--border); }
+  .stars button.lit { color: var(--star); }
+  .stars.readonly button { cursor: default; }
+
+  /* Toolbar */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 12px 0 6px; font-size: 13px; }
+  .toolbar label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+  .toolbar select { padding: 4px 6px; font-size: 13px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+  .chip { border: 1px solid var(--border); background: var(--bg); border-radius: 999px; padding: 3px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .chip.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+  .count { color: var(--muted); font-size: 12px; }
+
+  /* List */
+  .group-title { margin: 14px 0 4px; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; display: flex; align-items: center; gap: 8px; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li.todo { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  li.todo:hover { background: var(--panel); }
+  li.todo input[type=checkbox] { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--accent); cursor: pointer; }
+  .text { flex: 1 1 auto; min-width: 0; word-break: break-word; cursor: text; padding: 2px 0; }
+  .text-edit { flex: 1 1 auto; min-width: 0; }
+  li.done .text { text-decoration: line-through; color: var(--muted); }
+  li.done .stars button.lit { opacity: .45; }
+  .cat-tag { flex: 0 0 auto; font-size: 12px; border-radius: 999px; padding: 2px 8px; border: 1px solid var(--border); background: var(--bg); max-width: 130px; }
+  .del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; padding: 0 4px; flex: 0 0 auto; }
+  .del:hover { color: var(--danger); }
+  .empty { text-align: center; color: var(--muted); padding: 30px 0; }
+  .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; color: var(--muted); font-size: 13px; flex-wrap: wrap; gap: 8px; }
+
+  .toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: var(--radius); font-size: 14px; display: none; gap: 12px; align-items: center; z-index: 10; }
+  .toast button { background: none; border: none; color: var(--star); font-weight: 600; cursor: pointer; }
+
+  @media (max-width: 560px) {
+    li.todo { flex-wrap: wrap; row-gap: 4px; }
+    li.todo .text, li.todo .text-edit { flex-basis: calc(100% - 60px); }
+    li.todo .stars { margin-left: 28px; }
+    .stars button { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <form class="add" id="addForm" autocomplete="off">
+    <input type="text" id="newText" placeholder="New todo…">
+    <span class="stars" id="newStars"></span>
+    <input type="text" class="cat-input" id="newCat" placeholder="Category" list="catList">
+    <button class="btn primary" type="submit">Add</button>
+    <datalist id="catList"></datalist>
+  </form>
+
+  <div class="toolbar">
+    <label>Sort
+      <select id="sort1">
+        <option value="stars">Stars</option>
+        <option value="category">Category</option>
+        <option value="created">Date added</option>
+        <option value="text">Name</option>
+      </select>
+      <button class="btn small" id="dir1" type="button" title="Toggle direction">↓</button>
+    </label>
+    <label>then
+      <select id="sort2">
+        <option value="none">—</option>
+        <option value="stars">Stars</option>
+        <option value="category">Category</option>
+        <option value="created">Date added</option>
+        <option value="text">Name</option>
+      </select>
+      <button class="btn small" id="dir2" type="button" title="Toggle direction">↓</button>
+    </label>
+    <label>Min stars
+      <select id="minStars">
+        <option value="0">Any</option>
+        <option value="1">★+</option>
+        <option value="2">★★+</option>
+        <option value="3">★★★+</option>
+        <option value="4">★★★★+</option>
+        <option value="5">★★★★★</option>
+      </select>
+    </label>
+    <button class="btn small" id="groupBtn" type="button">Group by category</button>
+    <button class="btn small" id="doneBtn" type="button">Show done</button>
+  </div>
+
+  <div class="chips" id="chips"></div>
+  <div id="list"></div>
+
+  <div class="footer">
+    <span id="summary"></span>
+    <button class="btn small" id="clearDone" type="button">Clear done</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="undoBtn" type="button">Undo</button></div>
+
+<script src="component-relay.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---------- State ----------
+  const DEFAULT_VIEW = { sort1: "stars", dir1: "desc", sort2: "category", dir2: "asc",
+                         filterCat: null, minStars: 0, groupByCat: false, showDone: true };
+  let state = { version: 1, todos: [], view: { ...DEFAULT_VIEW } };
+  let newStars = 0;
+  let editingId = null;
+  let catEditingId = null;
+  let undoStack = null;
+
+  const UNCATEGORIZED = "";
+  const $ = (id) => document.getElementById(id);
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function catColor(name) {
+    if (!name) return "var(--muted)";
+    let h = 0;
+    for (const ch of name) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+    return `hsl(${h % 360}, 62%, 52%)`;
+  }
+
+  function categories() {
+    const set = new Set();
+    state.todos.forEach((t) => set.add(t.category || UNCATEGORIZED));
+    return [...set].sort((a, b) => {
+      if (a === UNCATEGORIZED) return 1;
+      if (b === UNCATEGORIZED) return -1;
+      return a.localeCompare(b, undefined, { sensitivity: "base" });
+    });
+  }
+
+  // ---------- Persistence (Standard Notes or local fallback) ----------
+  const inSN = window.parent !== window;
+  let relay = null;
+  let currentNote = null;
+
+  function parseText(text) {
+    if (!text || !text.trim()) return { version: 1, todos: [], view: { ...DEFAULT_VIEW } };
+    try {
+      const data = JSON.parse(text);
+      if (data && Array.isArray(data.todos)) {
+        data.view = { ...DEFAULT_VIEW, ...(data.view || {}) };
+        data.todos = data.todos.map((t) => ({
+          id: t.id || uid(), text: String(t.text || ""), stars: Math.max(0, Math.min(5, t.stars | 0)),
+          category: String(t.category || "").trim(), done: !!t.done, created: t.created || Date.now(),
+          doneAt: t.doneAt || null,
+        }));
+        return data;
+      }
+    } catch (e) { /* not JSON: import plain lines below */ }
+    // Plain text note: turn each non-empty line into a todo ("- [x] ..." markdown checkboxes understood)
+    const now = Date.now();
+    const todos = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line, i) => {
+      const m = line.match(/^[-*]\s*\[( |x|X)\]\s*(.*)$/);
+      return { id: uid(), text: m ? m[2] : line.replace(/^[-*]\s+/, ""), stars: 0, category: "",
+               done: m ? m[1].toLowerCase() === "x" : false, created: now + i, doneAt: null };
+    });
+    return { version: 1, todos, view: { ...DEFAULT_VIEW } };
+  }
+
+  function previewText() {
+    const open = state.todos.filter((t) => !t.done);
+    const top = [...open].sort((a, b) => b.stars - a.stars).slice(0, 3)
+      .map((t) => `${"★".repeat(t.stars)} ${t.text}`.trim());
+    return `${open.length} open / ${state.todos.length} todos` + (top.length ? " — " + top.join(" · ") : "");
+  }
+
+  function save() {
+    const text = JSON.stringify(state, null, 1);
+    if (relay && currentNote) {
+      const note = currentNote;
+      relay.saveItemWithPresave(note, () => {
+        note.content.text = text;
+        note.content.preview_plain = previewText();
+        note.content.preview_html = null;
+      });
+    } else if (!inSN) {
+      try { localStorage.setItem("starred-todo-standalone", text); } catch (e) {}
+    }
+  }
+
+  function commit() { render(); save(); }
+
+  // ---------- Rendering ----------
+  function starsHTML(n, id) {
+    let h = `<span class="stars" data-id="${id}">`;
+    for (let i = 1; i <= 5; i++) h += `<button type="button" data-star="${i}" class="${i <= n ? "lit" : ""}" aria-label="${i} star${i > 1 ? "s" : ""}">★</button>`;
+    return h + "</span>";
+  }
+
+  function compareBy(key, dir) {
+    const s = dir === "asc" ? 1 : -1;
+    return (a, b) => {
+      let r = 0;
+      if (key === "stars") r = a.stars - b.stars;
+      else if (key === "created") r = a.created - b.created;
+      else if (key === "text") r = a.text.localeCompare(b.text, undefined, { sensitivity: "base" });
+      else if (key === "category") {
+        // Uncategorized always goes last, whatever the direction
+        if (!a.category && b.category) return 1;
+        if (a.category && !b.category) return -1;
+        r = a.category.localeCompare(b.category, undefined, { sensitivity: "base" });
+      }
+      return r * s;
+    };
+  }
+
+  function sortedVisible() {
+    const v = state.view;
+    let items = state.todos.filter((t) =>
+      (v.showDone || !t.done) &&
+      t.stars >= v.minStars &&
+      (v.filterCat === null || (t.category || UNCATEGORIZED) === v.filterCat));
+    const c1 = compareBy(v.sort1, v.dir1);
+    const c2 = v.sort2 !== "none" ? compareBy(v.sort2, v.dir2) : () => 0;
+    const c3 = compareBy("created", "asc");
+    return items.sort((a, b) => (a.done - b.done) || c1(a, b) || c2(a, b) || c3(a, b));
+  }
+
+  function todoHTML(t) {
+    const cats = categories().filter(Boolean);
+    const textPart = editingId === t.id
+      ? `<input type="text" class="text-edit" data-id="${t.id}" value="${esc(t.text)}">`
+      : `<span class="text" data-id="${t.id}" title="Tap to edit">${esc(t.text)}</span>`;
+    const opts = [`<option value="">— none —</option>`]
+      .concat(cats.map((c) => `<option value="${esc(c)}" ${c === t.category ? "selected" : ""}>${esc(c)}</option>`))
+      .concat([`<option value="__new__">+ New…</option>`]).join("");
+    const catPart = catEditingId === t.id
+      ? `<input type="text" class="cat-tag cat-new" data-id="${t.id}" placeholder="New category" list="catList">`
+      : `<select class="cat-tag" data-id="${t.id}" style="border-color:${catColor(t.category)}">${opts}</select>`;
+    return `<li class="todo ${t.done ? "done" : ""}" data-id="${t.id}">
+      <input type="checkbox" data-id="${t.id}" ${t.done ? "checked" : ""} aria-label="Done">
+      ${textPart}
+      ${starsHTML(t.stars, t.id)}
+      ${catPart}
+      <button class="del" type="button" data-id="${t.id}" aria-label="Delete">×</button>
+    </li>`;
+  }
+
+  function render() {
+    const v = state.view;
+    // toolbar
+    $("sort1").value = v.sort1; $("sort2").value = v.sort2;
+    $("dir1").textContent = v.dir1 === "asc" ? "↑" : "↓";
+    $("dir2").textContent = v.dir2 === "asc" ? "↑" : "↓";
+    $("dir2").disabled = v.sort2 === "none";
+    $("minStars").value = String(v.minStars);
+    $("groupBtn").classList.toggle("on", v.groupByCat);
+    $("doneBtn").classList.toggle("on", v.showDone);
+
+    // new-todo stars + category suggestions
+    $("newStars").innerHTML = starsHTML(newStars, "new").replace(/^<span class="stars" data-id="new">|<\/span>$/g, "");
+    const cats = categories();
+    $("catList").innerHTML = cats.filter(Boolean).map((c) => `<option value="${esc(c)}">`).join("");
+
+    // category chips
+    const counts = {};
+    state.todos.forEach((t) => { if (!t.done) counts[t.category || UNCATEGORIZED] = (counts[t.category || UNCATEGORIZED] || 0) + 1; });
+    let chips = `<button class="chip ${v.filterCat === null ? "on" : ""}" data-cat="__all__" type="button">All</button>`;
+    cats.forEach((c) => {
+      chips += `<button class="chip ${v.filterCat === c ? "on" : ""}" data-cat="${esc(c)}" type="button">
+        <span class="dot" style="background:${catColor(c)}"></span>${c ? esc(c) : "<i>Uncategorized</i>"}
+        <span class="count">${counts[c] || 0}</span></button>`;
+    });
+    $("chips").innerHTML = cats.length ? chips : "";
+
+    // list
+    const items = sortedVisible();
+    let html = "";
+    if (!items.length) {
+      html = `<div class="empty">${state.todos.length ? "Nothing matches these filters." : "No todos yet — add one above."}</div>`;
+    } else if (v.groupByCat) {
+      const groups = new Map();
+      cats.forEach((c) => groups.set(c, []));
+      items.forEach((t) => groups.get(t.category || UNCATEGORIZED).push(t));
+      let order = [...groups.keys()].filter((c) => groups.get(c).length);
+      if (v.sort1 === "category" && v.dir1 === "desc") {
+        order = order.filter(Boolean).reverse().concat(order.includes("") ? [""] : []);
+      }
+      order.forEach((c) => {
+        html += `<div class="group-title"><span class="dot" style="background:${catColor(c)}"></span>${c ? esc(c) : "Uncategorized"} <span class="count">${groups.get(c).length}</span></div>`;
+        html += `<ul>${groups.get(c).map(todoHTML).join("")}</ul>`;
+      });
+    } else {
+      html = `<ul>${items.map(todoHTML).join("")}</ul>`;
+    }
+    $("list").innerHTML = html;
+
+    const open = state.todos.filter((t) => !t.done).length;
+    $("summary").textContent = `${open} open · ${state.todos.length - open} done`;
+    $("clearDone").style.visibility = state.todos.some((t) => t.done) ? "visible" : "hidden";
+
+    if (catEditingId) {
+      const ci = document.querySelector(`.cat-new[data-id="${catEditingId}"]`);
+      if (ci) ci.focus();
+    }
+    if (editingId) {
+      const inp = document.querySelector(`.text-edit[data-id="${editingId}"]`);
+      if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+    }
+  }
+
+  // ---------- Undo toast ----------
+  let toastTimer = null;
+  function offerUndo(msg, snapshot) {
+    undoStack = snapshot;
+    $("toastMsg").textContent = msg;
+    $("toast").style.display = "flex";
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { $("toast").style.display = "none"; undoStack = null; }, 5000);
+  }
+  $("undoBtn").addEventListener("click", () => {
+    if (undoStack) { state.todos = undoStack; undoStack = null; commit(); }
+    $("toast").style.display = "none";
+  });
+
+  // ---------- Events ----------
+  const find = (id) => state.todos.find((t) => t.id === id);
+
+  $("addForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = $("newText").value.trim();
+    if (!text) return;
+    state.todos.push({ id: uid(), text, stars: newStars, category: $("newCat").value.trim(),
+                       done: false, created: Date.now(), doneAt: null });
+    $("newText").value = "";
+    newStars = 0;               // keep category for quick entry of several items
+    commit();
+    $("newText").focus();
+  });
+
+  $("newStars").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-star]");
+    if (!b) return;
+    const n = +b.dataset.star;
+    newStars = newStars === n ? 0 : n;
+    render();
+  });
+
+  $("list").addEventListener("click", (e) => {
+    const star = e.target.closest(".stars button[data-star]");
+    if (star) {
+      const t = find(star.parentElement.dataset.id);
+      const n = +star.dataset.star;
+      t.stars = t.stars === n ? 0 : n;   // tap the same star again to clear
+      return commit();
+    }
+    const del = e.target.closest(".del");
+    if (del) {
+      const snapshot = state.todos.map((t) => ({ ...t }));
+      const t = find(del.dataset.id);
+      state.todos = state.todos.filter((x) => x.id !== del.dataset.id);
+      commit();
+      return offerUndo(`Deleted “${t.text.slice(0, 30)}”`, snapshot);
+    }
+    const txt = e.target.closest(".text");
+    if (txt) { editingId = txt.dataset.id; render(); }
+  });
+
+  $("list").addEventListener("change", (e) => {
+    const el = e.target;
+    if (el.matches("input[type=checkbox]")) {
+      const t = find(el.dataset.id);
+      t.done = el.checked; t.doneAt = el.checked ? Date.now() : null;
+      commit();
+    } else if (el.matches("select.cat-tag")) {
+      const t = find(el.dataset.id);
+      if (el.value === "__new__") { catEditingId = t.id; return render(); }
+      t.category = el.value;
+      commit();
+    }
+  });
+
+  function finishEdit(input, keep) {
+    const t = find(input.dataset.id);
+    editingId = null;
+    if (keep && t) {
+      const v = input.value.trim();
+      if (v) t.text = v;
+      commit();
+    } else render();
+  }
+  function finishCat(input, keep) {
+    const t = find(input.dataset.id);
+    catEditingId = null;
+    if (keep && t && input.value.trim()) { t.category = input.value.trim(); commit(); }
+    else render();
+  }
+  $("list").addEventListener("keydown", (e) => {
+    if (e.target.matches(".cat-new")) {
+      if (e.key === "Enter") { e.preventDefault(); finishCat(e.target, true); }
+      else if (e.key === "Escape") { e.preventDefault(); finishCat(e.target, false); }
+      return;
+    }
+    if (!e.target.matches(".text-edit")) return;
+    if (e.key === "Enter") { e.preventDefault(); finishEdit(e.target, true); }
+    else if (e.key === "Escape") { e.preventDefault(); finishEdit(e.target, false); }
+  });
+  $("list").addEventListener("focusout", (e) => {
+    if (e.target.matches(".text-edit") && editingId === e.target.dataset.id) finishEdit(e.target, true);
+    if (e.target.matches(".cat-new") && catEditingId === e.target.dataset.id) finishCat(e.target, true);
+  });
+
+  $("chips").addEventListener("click", (e) => {
+    const c = e.target.closest(".chip");
+    if (!c) return;
+    const cat = c.dataset.cat === "__all__" ? null : c.dataset.cat;
+    state.view.filterCat = state.view.filterCat === cat ? null : cat;
+    commit();
+  });
+
+  $("sort1").addEventListener("change", (e) => {
+    state.view.sort1 = e.target.value;
+    state.view.dir1 = e.target.value === "stars" ? "desc" : "asc";
+    commit();
+  });
+  $("sort2").addEventListener("change", (e) => {
+    state.view.sort2 = e.target.value;
+    state.view.dir2 = e.target.value === "stars" ? "desc" : "asc";
+    commit();
+  });
+  $("dir1").addEventListener("click", () => { state.view.dir1 = state.view.dir1 === "asc" ? "desc" : "asc"; commit(); });
+  $("dir2").addEventListener("click", () => { state.view.dir2 = state.view.dir2 === "asc" ? "desc" : "asc"; commit(); });
+  $("minStars").addEventListener("change", (e) => { state.view.minStars = +e.target.value; commit(); });
+  $("groupBtn").addEventListener("click", () => { state.view.groupByCat = !state.view.groupByCat; commit(); });
+  $("doneBtn").addEventListener("click", () => { state.view.showDone = !state.view.showDone; commit(); });
+  $("clearDone").addEventListener("click", () => {
+    const snapshot = state.todos.map((t) => ({ ...t }));
+    const n = state.todos.filter((t) => t.done).length;
+    state.todos = state.todos.filter((t) => !t.done);
+    commit();
+    offerUndo(`Cleared ${n} done`, snapshot);
+  });
+
+  // ---------- Boot ----------
+  if (inSN && window.ComponentRelay) {
+    const Relay = window.ComponentRelay.default || window.ComponentRelay;
+    relay = new Relay({
+      targetWindow: window,
+      options: { coallesedSaving: true, coallesedSavingDelay: 400 },
+      onReady: () => {
+        relay.streamContextItem((note) => {
+          const isNewNote = !currentNote || currentNote.uuid !== note.uuid;
+          currentNote = note;
+          if (note.isMetadataUpdate) return;
+          if (isNewNote) { editingId = null; catEditingId = null; }
+          state = parseText(note.content.text || "");
+          render();
+        });
+      },
+    });
+  } else {
+    let saved = null;
+    try { saved = localStorage.getItem("starred-todo-standalone"); } catch (e) {}
+    state = parseText(saved || "");
+  }
+  render();
+})();
+</script>
+</body>
+</html>
