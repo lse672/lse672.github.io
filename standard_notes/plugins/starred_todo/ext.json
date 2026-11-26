@@ -1,6 +1,6 @@
 {
   "identifier": "io.github.lse672.starred-todo",
-  "name": "Heart Todo",
+  "name": "Starred Todo",
   "content_type": "SN|Component",
   "area": "editor-editor",
   "version": "3.6.0",
