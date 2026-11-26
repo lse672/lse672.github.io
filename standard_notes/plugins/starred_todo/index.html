@@ -39,19 +39,40 @@
   .hint { color: var(--muted); font-size: 12px; }
 
   /* Hearts: -5 … -1 (broken, left) | +1 … +5 (right) */
-  .hearts { display: inline-flex; align-items: center; gap: 0; user-select: none; flex: 0 0 auto; }
-  .hearts button { background: none; border: none; padding: 1px; cursor: pointer; line-height: 0; color: var(--border); }
-  .hearts svg { width: 17px; height: 17px; display: block; }
-  .hearts button.lit.pos { color: var(--love); }
-  .hearts button.lit.neg { color: var(--hate); }
-  .hearts .mid { width: 1px; height: 14px; background: var(--border); margin: 0 4px; }
-  /* Difficulty: 5 rising bars, 0 = not set */
-  .diff { display: inline-flex; align-items: flex-end; gap: 0; user-select: none; flex: 0 0 auto; margin-left: 6px; }
-  .diff button { background: none; border: none; padding: 0 2px; cursor: pointer; height: 20px; display: flex; align-items: flex-end; }
-  .diff button i { display: block; width: 6px; border-radius: 1.5px; background: var(--border); }
-  .diff .dlabel { font-size: 11px; color: var(--muted); width: 38px; text-align: right; margin-right: 3px; align-self: center; }
-  li.done .diff button i { opacity: .45; }
-  .hearts .score { font-size: 11px; color: var(--muted); width: 22px; text-align: right; margin-right: 2px; font-variant-numeric: tabular-nums; }
+  /* Feeling: one heart (broken & purple below 0, filling up & deepening red above 0); tap → vertical picker */
+  .hearts { user-select: none; }
+  .hearts svg { display: block; }
+  .heart-trigger svg { width: 20px; height: 20px; }
+  .face-menu.hearts-menu { min-width: 170px; }
+  .face-menu .num { font-variant-numeric: tabular-nums; width: 22px; text-align: right; color: var(--muted); font-size: 12px; }
+  .face-menu button.zero { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); border-radius: 0; }
+  /* Ratings line: hearts + 1–5 bar scales (difficulty, install, understand) */
+  .ratings { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 5px; }
+  .add .ratings { flex-basis: 100%; margin-top: 0; }
+  .scale { display: inline-flex; align-items: flex-end; user-select: none; flex: 0 0 auto; }
+  .scale .slabel { font-size: 11px; color: var(--muted); margin-right: 4px; align-self: center; }
+  .scale .slabel b { font-weight: 600; color: var(--fg); }
+  .scale button { background: none; border: none; padding: 0 2px; cursor: pointer; height: 20px; display: flex; align-items: flex-end; }
+  .scale button i { display: block; width: 6px; border-radius: 1.5px; background: var(--border); }
+  li.done .scale button i { opacity: .45; }
+  .scale .face-now { font-size: 17px; line-height: 20px; margin-left: 4px; min-width: 20px; align-self: center; }
+  li.done .scale .face-now { opacity: .55; }
+  /* Heart picker: one compact button showing the chosen face; tap → vertical picker */
+  .scale.faces { position: relative; align-items: center; }
+  .scale button.face-trigger { height: 22px; min-width: 26px; padding: 0 4px; font-size: 17px; line-height: 22px; align-items: center; justify-content: center;
+                               border: 1px solid transparent; border-radius: 6px; }
+  .scale button.face-trigger:hover, .scale button.face-trigger.open { border-color: var(--border); background: var(--panel); }
+  .scale button.face-trigger.unset { font-size: 12px; color: var(--muted); border: 1px dashed var(--border); }
+  li.done .scale button.face-trigger { opacity: .55; }
+  .face-menu { position: absolute; top: 100%; left: 0; z-index: 20; margin-top: 3px; display: flex; flex-direction: column;
+               background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 14px rgba(0,0,0,.15); padding: 3px; min-width: 150px; }
+  .face-menu.up { top: auto; bottom: 100%; margin: 0 0 3px; }
+  .face-menu button { height: auto !important; display: flex; align-items: center; gap: 8px; padding: 4px 8px !important; border-radius: 6px; font-size: 13px; text-align: left; white-space: nowrap; }
+  .face-menu button .f { font-size: 18px; width: 22px; text-align: center; }
+  .face-menu button .f svg { width: 18px; height: 18px; margin: 0 auto; }
+  .face-menu button:hover { background: var(--panel); }
+  .face-menu button.lit { background: var(--panel); font-weight: 600; box-shadow: inset 3px 0 0 var(--accent); }
+  .face-menu button.clear { color: var(--muted); border-top: 1px solid var(--border); border-radius: 0 0 6px 6px; }
 
   /* Toolbar */
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 12px 0 6px; font-size: 13px; }
@@ -81,7 +102,7 @@
   .pill { font-size: 11.5px; border-radius: 999px; padding: 1px 8px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
   .pill.tag { border: none; background: var(--panel); color: var(--muted); padding: 1px 6px; }
   li.done .text { text-decoration: line-through; color: var(--muted); }
-  li.done .hearts button.lit { opacity: .45; }
+  li.done .heart-trigger { opacity: .5; }
   .icon-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0 4px; flex: 0 0 auto; }
   .icon-btn:hover { color: var(--accent); }
   .icon-btn.del:hover { color: var(--danger); }
@@ -102,17 +123,18 @@
   .toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: var(--radius); font-size: 14px; display: none; gap: 12px; align-items: center; z-index: 10; }
   .toast button { background: none; border: none; color: var(--love); font-weight: 600; cursor: pointer; }
 
+  #filtersBtn { display: none; }
   @media (max-width: 560px) {
-    .row { flex-wrap: wrap; row-gap: 4px; }
-    .row .main { flex-basis: calc(100% - 100px); }
-    .row .hearts { margin-left: 20px; order: 5; }
-    .row .diff { order: 6; margin-left: 4px; }
-    .row .del { order: 3; }
-    .diff button { height: 22px; padding: 0 3px; }
-    .hearts svg { width: 18px; height: 18px; }
-    .diff .dlabel { display: none; }
-    .row .main { order: 1; }
-    .row .edit-btn { order: 2; }
+    #filtersBtn { display: inline-block; }
+    body:not(.filters-open) #filterBox { display: none !important; }
+    .row { align-items: flex-start; gap: 8px; }
+    .ratings { gap: 4px 10px; }
+    .row input[type=checkbox], .row .icon-btn { margin-top: 2px; }
+    .scale button { height: 22px; padding: 0 3px; }
+    .scale button.face-trigger { font-size: 20px; height: 26px; }
+    .scale .face-now { font-size: 20px; }
+    .face-menu button { padding: 7px 10px !important; font-size: 14px; }
+    .heart-trigger svg { width: 23px; height: 23px; }
     .edit { margin-left: 0; }
     .filter-label { width: 100%; }
   }
@@ -122,11 +144,10 @@
 <div id="app">
   <form class="add" id="addForm" autocomplete="off">
     <input type="text" id="newText" placeholder="New todo…  (#tags allowed)">
-    <span class="hearts" id="newHearts"></span>
-    <span class="diff" id="newDiff"></span>
     <input type="text" class="meta-input" id="newCats" placeholder="Categories (comma-separated)">
     <input type="text" class="meta-input" id="newTags" placeholder="Tags">
     <button class="btn primary" type="submit">Add</button>
+    <div class="ratings" id="newRatings"></div>
     <div class="suggest" id="newSuggest"></div>
   </form>
 
@@ -135,6 +156,9 @@
       <select id="sort1">
         <option value="love">Hearts</option>
         <option value="difficulty">Difficulty</option>
+        <option value="installEase">Setup ease</option>
+        <option value="understandEase">Understand ease</option>
+        <option value="strategy">Strategy</option>
         <option value="category">Category</option>
         <option value="created">Date added</option>
         <option value="text">Name</option>
@@ -146,12 +170,17 @@
         <option value="none">—</option>
         <option value="love">Hearts</option>
         <option value="difficulty">Difficulty</option>
+        <option value="installEase">Setup ease</option>
+        <option value="understandEase">Understand ease</option>
+        <option value="strategy">Strategy</option>
         <option value="category">Category</option>
         <option value="created">Date added</option>
         <option value="text">Name</option>
       </select>
       <button class="btn small" id="dir2" type="button" title="Toggle direction">↓</button>
     </label>
+    <button class="btn small" id="filtersBtn" type="button">Filters</button>
+    <span id="filterBox" style="display:contents">
     <label>Feeling
       <select id="feeling">
         <option value="any">Any</option>
@@ -163,16 +192,8 @@
         <option value="neg3">Hated (−3…−5)</option>
       </select>
     </label>
-    <label>Difficulty
-      <select id="diffFilter">
-        <option value="any">Any</option>
-        <option value="easy">Easy (1–2)</option>
-        <option value="medium">Medium (3)</option>
-        <option value="hard">Hard (4–5)</option>
-        <option value="notHard">Not hard (≤ 3)</option>
-        <option value="unset">Not rated</option>
-      </select>
-    </label>
+    <span id="scaleFilters" style="display:contents"></span>
+    </span>
     <button class="btn small" id="groupBtn" type="button">Group by category</button>
     <button class="btn small" id="doneBtn" type="button">Show done</button>
   </div>
@@ -196,21 +217,48 @@
 
   // ---------- State ----------
   const DEFAULT_VIEW = { sort1: "love", dir1: "desc", sort2: "none", dir2: "asc",
-                         filterCat: null, filterTags: [], feeling: "any", diffFilter: "any", groupByCat: false, showDone: true };
+                         filterCat: null, filterTags: [], feeling: "any", scaleFilters: {}, groupByCat: false, showDone: true };
   const FEELINGS = {
     any: () => true, pos: (n) => n > 0, pos3: (n) => n >= 3, neutral: (n) => n === 0,
     notneg: (n) => n >= 0, neg: (n) => n < 0, neg3: (n) => n <= -3,
   };
-  const DIFFS = {
-    any: () => true, easy: (n) => n >= 1 && n <= 2, medium: (n) => n === 3, hard: (n) => n >= 4,
-    notHard: (n) => n >= 1 && n <= 3, unset: (n) => n === 0,
-  };
-  const DIFF_NAMES = ["", "Trivial", "Easy", "Medium", "Hard", "Very hard"];
-  const DIFF_COLORS = ["", "#3fb950", "#8bc34a", "#e3b341", "#f0883e", "#da3633"];
+  // 1–5 bar scales; 0 = not rated. "bestFirst" = default sort direction (easiest first).
+  const GREEN_TO_RED = ["", "#3fb950", "#8bc34a", "#e3b341", "#f0883e", "#da3633"];
+  const RED_TO_GREEN = ["", "#da3633", "#f0883e", "#e3b341", "#8bc34a", "#3fb950"];
+  const EASE_NAMES = ["", "Mind-blowing", "Hard", "OK", "Easy", "Very easy"];
+  const FACES = ["", "🤯", "😵‍💫", "😐", "🙂", "😀"];
+  const BLUES = ["", "#9ecae1", "#6baed6", "#4292c6", "#2171b5", "#08519c"];
+  const EASE_FILTERS = [
+    ["easy", "Easy (4–5)", (n) => n >= 4], ["ok", "OK or easier (≥ 3)", (n) => n >= 3],
+    ["hard", "Hard (1–2)", (n) => n >= 1 && n <= 2], ["unset", "Not rated", (n) => n === 0],
+  ];
+  const SCALES = [
+    { key: "difficulty", short: "Difficulty", label: "Difficulty", bestFirst: "asc",
+      names: ["", "Trivial", "Easy", "Medium", "Hard", "Very hard"], colors: GREEN_TO_RED,
+      filters: [["easy", "Easy (1–2)", (n) => n >= 1 && n <= 2], ["medium", "Medium (3)", (n) => n === 3],
+                ["hard", "Hard (4–5)", (n) => n >= 4], ["notHard", "Not hard (≤ 3)", (n) => n >= 1 && n <= 3],
+                ["unset", "Not rated", (n) => n === 0]] },
+    // Ease scales shown as faces: 😀 very easy … 🤯 mind-blowing (stored as 5 = easiest)
+    { key: "installEase", short: "Setup", label: "Setup", bestFirst: "desc", style: "faces",
+      names: EASE_NAMES, faces: FACES, filters: EASE_FILTERS },
+    { key: "understandEase", short: "Understand", label: "Understand", bestFirst: "desc", style: "faces",
+      names: EASE_NAMES, faces: FACES, filters: EASE_FILTERS },
+    // Strategic depth: independent of difficulty (a game can be easy yet very strategic)
+    { key: "strategy", short: "Strategy", label: "Strategy", bestFirst: "desc",
+      names: ["", "Pure luck", "Light", "Moderate", "Deep", "Very deep"], colors: BLUES,
+      filters: [["light", "Light (1–2)", (n) => n >= 1 && n <= 2], ["moderate", "Moderate (3)", (n) => n === 3],
+                ["deep", "Deep (4–5)", (n) => n >= 4], ["unset", "Not rated", (n) => n === 0]] },
+  ];
+  const defaultDir = (key) => key === "love" ? "desc" : SCALE[key] ? SCALE[key].bestFirst : "asc";
+  const SCALE = Object.fromEntries(SCALES.map((sc) => [sc.key, sc]));
+  const scaleFilterFn = (sc, v) => (sc.filters.find((f) => f[0] === v) || [null, null, () => true])[2];
+  const filtersActive = (v) => v.filterCat !== null || v.filterTags.length || v.feeling !== "any" ||
+    SCALES.some((sc) => (v.scaleFilters[sc.key] || "any") !== "any");
   let state = { version: 3, todos: [], view: { ...DEFAULT_VIEW } };
   let newLove = 0;
-  let newDiff = 0;
+  let newScales = Object.fromEntries(SCALES.map((sc) => [sc.key, 0]));
   let editingId = null;
+  let openPicker = null;   // "<todo id>|<scale key>" of the open face picker
   let undoStack = null;
 
   const NONE = "";   // the "uncategorized" bucket
@@ -265,7 +313,7 @@
     if (!cats.length && t.category) cats = [t.category];          // v1 → v2 migration
     return {
       id: t.id || uid(), text: String(t.text || ""), love: Math.max(-5, Math.min(5, (t.love ?? t.stars ?? 0) | 0)),   // v1/v2 "stars" → positive hearts
-      difficulty: Math.max(0, Math.min(5, (t.difficulty ?? 0) | 0)),
+      ...Object.fromEntries(SCALES.map((sc) => [sc.key, Math.max(0, Math.min(5, (t[sc.key] ?? 0) | 0))])),
       categories: uniq(cats), tags: uniq((Array.isArray(t.tags) ? t.tags : []).map((x) => String(x).replace(/^#+/, ""))),
       done: !!t.done, created: t.created || Date.now(), doneAt: t.doneAt || null,
     };
@@ -280,7 +328,9 @@
         ["sort1", "sort2"].forEach((k) => { if (view[k] === "stars") view[k] = "love"; });
         if (!FEELINGS[view.feeling]) view.feeling = data.view && data.view.minStars > 0 ? "pos" : "any";
         delete view.minStars;
-        if (!DIFFS[view.diffFilter]) view.diffFilter = "any";
+        view.scaleFilters = { ...(view.scaleFilters || {}) };
+        if (view.diffFilter && !view.scaleFilters.difficulty) view.scaleFilters.difficulty = view.diffFilter;  // v3.1
+        delete view.diffFilter;
         if (!Array.isArray(view.filterTags)) view.filterTags = [];
         return { version: 3, todos: data.todos.map(normalizeTodo), view };
       }
@@ -327,10 +377,10 @@
     return (a, b) => {
       let r = 0;
       if (key === "love") r = a.love - b.love;
-      else if (key === "difficulty") {
-        if (!a.difficulty && b.difficulty) return 1;     // not-rated always goes last
-        if (a.difficulty && !b.difficulty) return -1;
-        r = a.difficulty - b.difficulty;
+      else if (SCALE[key]) {
+        if (!a[key] && b[key]) return 1;     // not-rated always goes last
+        if (a[key] && !b[key]) return -1;
+        r = a[key] - b[key];
       }
       else if (key === "created") r = a.created - b.created;
       else if (key === "text") r = cmpStr(a.text, b.text);
@@ -350,7 +400,7 @@
     const v = state.view;
     if (!v.showDone && t.done) return false;
     if (!FEELINGS[v.feeling](t.love)) return false;
-    if (!DIFFS[v.diffFilter](t.difficulty)) return false;
+    if (!SCALES.every((sc) => scaleFilterFn(sc, v.scaleFilters[sc.key])(t[sc.key]))) return false;
     if (v.filterCat !== null) {
       if (v.filterCat === NONE ? t.categories.length : !hasCI(t.categories, v.filterCat)) return false;
     }
@@ -367,27 +417,60 @@
 
   // ---------- Rendering ----------
   const HEART = "M12 21s-7.5-4.6-9.6-9.3C.9 8.3 3 4.5 6.6 4.5c2.1 0 3.6 1.2 5.4 3.1 1.8-1.9 3.3-3.1 5.4-3.1 3.6 0 5.7 3.8 4.2 7.2C19.5 16.4 12 21 12 21z";
-  const heartSVG = (broken) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${HEART}" fill="currentColor"/>` +
-    (broken ? `<path d="M12.6 6.6 10.2 10.4l3 2.2-2.4 4.4" fill="none" stroke="var(--bg)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>` : "") + `</svg>`;
-  // n in [-5, 5]; buttons -5…-1 then +1…+5, lit from the centre outwards
-  function diffHTML(n) {
-    let h = `<span class="dlabel">${DIFF_NAMES[n]}</span>`;
-    for (let i = 1; i <= 5; i++) {
-      const bg = i <= n ? `background:${DIFF_COLORS[n]}` : "";
-      h += `<button type="button" data-diff="${i}" aria-label="Difficulty ${i}: ${DIFF_NAMES[i]}" title="${DIFF_NAMES[i]}"><i style="height:${4 + i * 3}px;${bg}"></i></button>`;
+  const LOVE_COLORS = ["#f7b6c8", "#f07c9d", "#e84a76", "#d81b55", "#a8003c"];   // +1 … +5
+  const HATE_COLORS = ["#c5bfdd", "#a198c8", "#7d70b0", "#594b92", "#3a2c6e"];   // −1 … −5
+  const LOVE_NAMES = { 5: "Adore", 4: "Love", 3: "Like a lot", 2: "Like", 1: "Slightly like", 0: "Neutral",
+                       "-1": "Slightly dislike", "-2": "Dislike", "-3": "Dislike a lot", "-4": "Hate", "-5": "Loathe" };
+  const signed = (n) => n > 0 ? "+" + n : n < 0 ? "−" + -n : "0";
+  let svgSeq = 0;
+  // One heart for a score n in [-5, 5]: outline at 0; filled from the bottom by |n|/5,
+  // red shades for positive, purple shades + crack for negative.
+  function heartIcon(n) {
+    const id = "hc" + (++svgSeq);
+    const a = Math.abs(n), color = n > 0 ? LOVE_COLORS[a - 1] : n < 0 ? HATE_COLORS[a - 1] : "none";
+    const top = 2 + 20 * (1 - a / 5);               // heart spans y≈4…21
+    let h = `<svg viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="${id}"><path d="${HEART}"/></clipPath></defs>`;
+    if (n) h += `<path d="${HEART}" fill="${color}" opacity=".18"/><rect x="0" y="${top}" width="24" height="${24 - top}" fill="${color}" clip-path="url(#${id})"/>`;
+    h += `<path d="${HEART}" fill="none" stroke="${n ? color : "var(--muted)"}" stroke-width="1.6" stroke-linejoin="round"/>`;
+    if (n < 0) h += `<path d="M12.6 5.6 10.2 10.4l3 2.2-2.4 5.4" fill="none" stroke="var(--bg)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    return h + `</svg>`;
+  }
+  function scaleHTML(sc, n, id) {
+    let h = `<span class="scale" data-id="${id}" data-key="${sc.key}" title="${sc.label}: ${n ? sc.names[n] : "not rated"}">` +
+            `<span class="slabel">${sc.short}</span>`;   // value shown by the bars only (name in tooltip)
+    if (sc.style === "faces") {
+      // Ease is stored as 5 = easiest, but drawn as complexity: taller bar = more complex (🤯),
+      // followed by the face for the current value.
+      const cx = n ? 6 - n : 0;
+      for (let j = 1; j <= 5; j++) {
+        const bg = j <= cx ? `background:${GREEN_TO_RED[cx]}` : "";
+        h += `<button type="button" data-level="${6 - j}" aria-label="${sc.label}: ${sc.names[6 - j]}" title="${sc.faces[6 - j]} ${sc.names[6 - j]}"><i style="height:${4 + j * 3}px;${bg}"></i></button>`;
+      }
+      return h + `<span class="face-now">${n ? sc.faces[n] : ""}</span></span>`;
     }
-    return h;
+    for (let i = 1; i <= 5; i++) {
+      const bg = i <= n ? `background:${sc.colors[n]}` : "";
+      h += `<button type="button" data-level="${i}" aria-label="${sc.label} ${i}: ${sc.names[i]}"><i style="height:${4 + i * 3}px;${bg}"></i></button>`;
+    }
+    return h + "</span>";
   }
 
-  function heartsHTML(n) {
-    let h = `<span class="score">${n > 0 ? "+" + n : n < 0 ? "−" + -n : ""}</span>`;
-    for (let i = -5; i <= 5; i++) {
-      if (i === 0) { h += `<span class="mid"></span>`; continue; }
-      const lit = i < 0 ? n <= i : n >= i;
-      const label = i < 0 ? `${-i} broken heart${i < -1 ? "s" : ""} (dislike)` : `${i} heart${i > 1 ? "s" : ""} (like)`;
-      h += `<button type="button" data-love="${i}" class="${i < 0 ? "neg" : "pos"} ${lit ? "lit" : ""}" aria-label="${label}" title="${i > 0 ? "+" + i : "−" + -i}">${heartSVG(i < 0)}</button>`;
+  function ratingsHTML(vals, id) {
+    return heartsHTML(vals.love, id) +
+      SCALES.map((sc) => scaleHTML(sc, vals[sc.key], id)).join("");
+  }
+
+  function heartsHTML(n, id) {
+    const pid = id + "|love", open = openPicker === pid;
+    let h = `<span class="scale faces hearts" data-id="${id}" title="Feeling: ${signed(n)} ${LOVE_NAMES[n]}">` +
+            `<button type="button" class="face-trigger heart-trigger ${open ? "open" : ""}" data-picker="${pid}" aria-label="Feeling: ${signed(n)} ${LOVE_NAMES[n]}">${heartIcon(n)}</button>`;
+    if (open) {
+      h += `<span class="face-menu hearts-menu">`;
+      for (let i = 5; i >= -5; i--)     // +5 at the top → −5 at the bottom
+        h += `<button type="button" class="${i === n ? "lit" : ""} ${i === 0 ? "zero" : ""}" data-love="${i}"><span class="num">${signed(i)}</span><span class="f">${heartIcon(i)}</span>${LOVE_NAMES[i]}</button>`;
+      h += `</span>`;
     }
-    return h;
+    return h + "</span>";
   }
 
   // Clickable suggestions of existing categories/tags not yet in an input
@@ -409,9 +492,8 @@
     let html = `<li class="todo ${t.done ? "done" : ""}" data-id="${t.id}">
       <div class="row">
         <input type="checkbox" data-id="${t.id}" ${t.done ? "checked" : ""} aria-label="Done">
-        <div class="main"><div class="text" data-id="${t.id}" title="Tap to edit">${esc(t.text)}</div><div class="meta">${pills}</div></div>
-        <span class="hearts" data-id="${t.id}">${heartsHTML(t.love)}</span>
-        <span class="diff" data-id="${t.id}">${diffHTML(t.difficulty)}</span>
+        <div class="main"><div class="text" data-id="${t.id}" title="Tap to edit">${esc(t.text)}</div><div class="meta">${pills}</div>
+          <div class="ratings">${ratingsHTML(t, t.id)}</div></div>
         <button class="icon-btn edit-btn" type="button" data-id="${t.id}" aria-label="Edit">✎</button>
         <button class="icon-btn del" type="button" data-id="${t.id}" aria-label="Delete">×</button>
       </div>`;
@@ -434,12 +516,14 @@
     $("dir2").textContent = v.dir2 === "asc" ? "↑" : "↓";
     $("dir2").disabled = v.sort2 === "none";
     $("feeling").value = v.feeling;
-    $("diffFilter").value = v.diffFilter;
+    SCALES.forEach((sc) => { $("sf-" + sc.key).value = v.scaleFilters[sc.key] || "any"; });
     $("groupBtn").classList.toggle("on", v.groupByCat);
+    const nActive = (v.feeling !== "any") + SCALES.filter((sc) => (v.scaleFilters[sc.key] || "any") !== "any").length;
+    $("filtersBtn").textContent = `Filters${nActive ? ` (${nActive})` : ""} ${document.body.classList.contains("filters-open") ? "▴" : "▾"}`;
+    $("filtersBtn").classList.toggle("on", nActive > 0);
     $("doneBtn").classList.toggle("on", v.showDone);
 
-    $("newHearts").innerHTML = heartsHTML(newLove);
-    $("newDiff").innerHTML = diffHTML(newDiff);
+    $("newRatings").innerHTML = ratingsHTML({ love: newLove, ...newScales }, "new");
     $("newSuggest").innerHTML = suggestHTML($("newCats").value, $("newTags").value);
 
     // Category filter chips (single choice)
@@ -465,10 +549,10 @@
         const on = hasCI(v.filterTags, g);
         h += `<button class="chip tag ${on ? "on" : ""}" data-ftag="${esc(g)}" type="button">#${esc(g)} <span class="count">${openTodos.filter((t) => hasCI(t.tags, g)).length}</span></button>`;
       });
-      if (v.filterTags.length || v.filterCat !== null || v.feeling !== "any" || v.diffFilter !== "any") h += `<button class="clear-filters" id="clearFilters" type="button">Clear filters</button>`;
+      if (filtersActive(v)) h += `<button class="clear-filters" id="clearFilters" type="button">Clear filters</button>`;
       $("tagChips").innerHTML = h;
     } else {
-      $("tagChips").innerHTML = (v.filterCat !== null || v.feeling !== "any" || v.diffFilter !== "any") ? `<button class="clear-filters" id="clearFilters" type="button">Clear filters</button>` : "";
+      $("tagChips").innerHTML = filtersActive(v) ? `<button class="clear-filters" id="clearFilters" type="button">Clear filters</button>` : "";
     }
 
     // List
@@ -496,6 +580,10 @@
     $("summary").textContent = `${open} open · ${state.todos.length - open} done` +
       (items.length !== state.todos.length ? ` · ${new Set(items.map((t) => t.id)).size} shown` : "");
     $("clearDone").style.visibility = state.todos.some((t) => t.done) ? "visible" : "hidden";
+
+    const menu = document.querySelector(".face-menu");
+    if (menu && menu.getBoundingClientRect().bottom > window.innerHeight - 4 &&
+        menu.parentElement.getBoundingClientRect().top > menu.offsetHeight + 8) menu.classList.add("up");
 
     if (editingId) {
       const inp = document.querySelector(`.edit[data-id="${editingId}"] .e-text`);
@@ -532,20 +620,22 @@
     if (!raw) return;
     const ex = extractTags(raw);
     state.todos.push(normalizeTodo({
-      text: ex.text, love: newLove, difficulty: newDiff, categories: parseCats($("newCats").value),
+      text: ex.text, love: newLove, ...newScales, categories: parseCats($("newCats").value),
       tags: parseTags($("newTags").value).concat(ex.tags), created: Date.now(),
     }));
     $("newText").value = "";
-    newLove = 0; newDiff = 0;  // categories & tags are kept, to enter several similar todos quickly
+    newLove = 0; SCALES.forEach((sc) => { newScales[sc.key] = 0; });  // categories & tags are kept, to enter several similar todos quickly
     commit();
     $("newText").focus();
   });
 
   $("addForm").addEventListener("click", (e) => {
-    const hb = e.target.closest("#newHearts button[data-love]");
-    if (hb) { const n = +hb.dataset.love; newLove = newLove === n ? 0 : n; return render(); }
-    const db = e.target.closest("#newDiff button[data-diff]");
-    if (db) { const n = +db.dataset.diff; newDiff = newDiff === n ? 0 : n; return render(); }
+    const hb = e.target.closest(".hearts button[data-love]");
+    if (hb) { newLove = +hb.dataset.love; openPicker = null; return render(); }
+    const pk = e.target.closest("[data-picker]");
+    if (pk) { openPicker = openPicker === pk.dataset.picker ? null : pk.dataset.picker; return render(); }
+    const sb = e.target.closest(".scale button[data-level]");
+    if (sb) { const k = sb.closest(".scale").dataset.key, n = +sb.dataset.level; newScales[k] = newScales[k] === n ? 0 : n; openPicker = null; return render(); }
     const ac = e.target.closest("[data-add-cat]");
     if (ac) { appendToInput($("newCats"), ac.dataset.addCat, ", "); return render(); }
     const at = e.target.closest("[data-add-tag]");
@@ -579,18 +669,21 @@
       }
       return;
     }
-    const db = e.target.closest(".diff button[data-diff]");
-    if (db) {
-      const t = find(db.parentElement.dataset.id);
-      const n = +db.dataset.diff;
-      t.difficulty = t.difficulty === n ? 0 : n;   // tap the same bar again to clear
+    const pk = e.target.closest("[data-picker]");
+    if (pk) { openPicker = openPicker === pk.dataset.picker ? null : pk.dataset.picker; return render(); }
+    const sb = e.target.closest(".scale button[data-level]");
+    if (sb) {
+      const sc = sb.closest(".scale"), t = find(sc.dataset.id), k = sc.dataset.key;
+      const n = +sb.dataset.level;
+      openPicker = null;
+      t[k] = t[k] === n ? 0 : n;   // tap the same bar again to clear
       return commit();
     }
     const hb = e.target.closest(".hearts button[data-love]");
     if (hb) {
-      const t = find(hb.parentElement.dataset.id);
-      const n = +hb.dataset.love;
-      t.love = t.love === n ? 0 : n;     // tap the same heart again to go back to neutral
+      const t = find(hb.closest(".hearts").dataset.id);
+      t.love = +hb.dataset.love;
+      openPicker = null;
       return commit();
     }
     const del = e.target.closest(".del");
@@ -629,7 +722,7 @@
 
   function onFilterClick(e) {
     if (e.target.closest("#clearFilters")) {
-      Object.assign(state.view, { filterCat: null, filterTags: [], feeling: "any", diffFilter: "any" });
+      Object.assign(state.view, { filterCat: null, filterTags: [], feeling: "any", scaleFilters: {} });
       return commit();
     }
     const c = e.target.closest("[data-fcat]");
@@ -650,18 +743,26 @@
 
   $("sort1").addEventListener("change", (e) => {
     state.view.sort1 = e.target.value;
-    state.view.dir1 = e.target.value === "love" ? "desc" : "asc";
+    state.view.dir1 = defaultDir(e.target.value);
     commit();
   });
   $("sort2").addEventListener("change", (e) => {
     state.view.sort2 = e.target.value;
-    state.view.dir2 = e.target.value === "love" ? "desc" : "asc";
+    state.view.dir2 = defaultDir(e.target.value);
     commit();
   });
   $("dir1").addEventListener("click", () => { state.view.dir1 = state.view.dir1 === "asc" ? "desc" : "asc"; commit(); });
   $("dir2").addEventListener("click", () => { state.view.dir2 = state.view.dir2 === "asc" ? "desc" : "asc"; commit(); });
   $("feeling").addEventListener("change", (e) => { state.view.feeling = e.target.value; commit(); });
-  $("diffFilter").addEventListener("change", (e) => { state.view.diffFilter = e.target.value; commit(); });
+  // One filter dropdown per 1–5 scale
+  $("scaleFilters").innerHTML = SCALES.map((sc) => `<label>${sc.label}<select id="sf-${sc.key}" data-key="${sc.key}">` +
+    `<option value="any">Any</option>` + sc.filters.map((f) => `<option value="${f[0]}">${f[1]}</option>`).join("") +
+    `</select></label>`).join("");
+  $("scaleFilters").addEventListener("change", (e) => {
+    const k = e.target.dataset.key;
+    if (k) { state.view.scaleFilters = { ...state.view.scaleFilters, [k]: e.target.value }; commit(); }
+  });
+  $("filtersBtn").addEventListener("click", () => { document.body.classList.toggle("filters-open"); render(); });
   $("groupBtn").addEventListener("click", () => { state.view.groupByCat = !state.view.groupByCat; commit(); });
   $("doneBtn").addEventListener("click", () => { state.view.showDone = !state.view.showDone; commit(); });
   $("clearDone").addEventListener("click", () => {
@@ -670,6 +771,13 @@
     state.todos = state.todos.filter((t) => !t.done);
     commit();
     offerUndo(`Cleared ${n} done`, snap);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (openPicker && !e.target.closest(".scale.faces")) { openPicker = null; render(); }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && openPicker) { openPicker = null; render(); }
   });
 
   // ---------- Boot ----------
@@ -684,7 +792,7 @@
           currentNote = note;
           if (note.isMetadataUpdate) return;
           if (!isNewNote && note.content.text === lastSavedText) return;   // our own save echoed back
-          if (isNewNote) editingId = null;
+          if (isNewNote) { editingId = null; openPicker = null; }
           state = parseText(note.content.text || "");
           render();
         });
