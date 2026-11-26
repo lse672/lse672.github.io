@@ -451,13 +451,12 @@
             `<span class="slabel">${sc.short}</span>`;   // value shown by the bars only (name in tooltip)
     if (sc.style === "faces") {
       // Ease is stored as 5 = easiest, but drawn as complexity: taller bar = more complex (🤯),
-      // followed by the face for the current value.
       const cx = n ? 6 - n : 0;
       for (let j = 1; j <= 5; j++) {
         const bg = j <= cx ? `background:${GREEN_TO_RED[cx]}` : "";
-        h += `<button type="button" data-level="${6 - j}" aria-label="${sc.label}: ${sc.names[6 - j]}" title="${sc.faces[6 - j]} ${sc.names[6 - j]}"><i style="height:${4 + j * 3}px;${bg}"></i></button>`;
+        h += `<button type="button" data-level="${6 - j}" aria-label="${sc.label}: ${sc.names[6 - j]}" title="${sc.names[6 - j]}"><i style="height:${4 + j * 3}px;${bg}"></i></button>`;
       }
-      return h + `<span class="face-now">${n ? sc.faces[n] : ""}</span></span>`;
+      return h + "</span>";
     }
     for (let i = 1; i <= 5; i++) {
       const bg = i <= n ? `background:${sc.colors[n]}` : "";
