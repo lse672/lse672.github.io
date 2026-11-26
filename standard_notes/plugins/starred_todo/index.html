@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Starred Todo</title>
+<title>Heart Todo</title>
 <style>
   :root {
     --bg: var(--sn-stylekit-background-color, #ffffff);
@@ -14,7 +14,8 @@
     --accent: var(--sn-stylekit-info-color, #086dd6);
     --accent-fg: var(--sn-stylekit-info-contrast-color, #ffffff);
     --danger: var(--sn-stylekit-danger-color, #cc2128);
-    --star: #f5a623;
+    --love: #e0245e;
+    --hate: #5b4f8f;
     --radius: 8px;
     --font: var(--sn-stylekit-sans-serif-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
   }
@@ -25,8 +26,9 @@
 
   /* Add form */
   .add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
-  .add input[type=text] { flex: 1 1 220px; min-width: 0; }
-  .add .cat-input { flex: 0 1 150px; }
+  .add #newText { flex: 1 1 260px; min-width: 0; }
+  .add .meta-input { flex: 1 1 160px; min-width: 0; }
+  .add .suggest { flex-basis: 100%; }
   input[type=text], select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; outline: none; }
   input[type=text]:focus, select:focus { border-color: var(--accent); }
   .btn { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
@@ -34,64 +36,105 @@
   .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
   .btn.small { padding: 4px 9px; font-size: 13px; }
   .btn.on { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .hint { color: var(--muted); font-size: 12px; }
 
-  /* Stars */
-  .stars { display: inline-flex; gap: 1px; user-select: none; flex: 0 0 auto; }
-  .stars button { background: none; border: none; padding: 0 1px; cursor: pointer; font-size: 18px; line-height: 1; color: var(--border); }
-  .stars button.lit { color: var(--star); }
-  .stars.readonly button { cursor: default; }
+  /* Hearts: -5 … -1 (broken, left) | +1 … +5 (right) */
+  .hearts { display: inline-flex; align-items: center; gap: 0; user-select: none; flex: 0 0 auto; }
+  .hearts button { background: none; border: none; padding: 1px; cursor: pointer; line-height: 0; color: var(--border); }
+  .hearts svg { width: 17px; height: 17px; display: block; }
+  .hearts button.lit.pos { color: var(--love); }
+  .hearts button.lit.neg { color: var(--hate); }
+  .hearts .mid { width: 1px; height: 14px; background: var(--border); margin: 0 4px; }
+  /* Difficulty: 5 rising bars, 0 = not set */
+  .diff { display: inline-flex; align-items: flex-end; gap: 0; user-select: none; flex: 0 0 auto; margin-left: 6px; }
+  .diff button { background: none; border: none; padding: 0 2px; cursor: pointer; height: 20px; display: flex; align-items: flex-end; }
+  .diff button i { display: block; width: 6px; border-radius: 1.5px; background: var(--border); }
+  .diff .dlabel { font-size: 11px; color: var(--muted); width: 38px; text-align: right; margin-right: 3px; align-self: center; }
+  li.done .diff button i { opacity: .45; }
+  .hearts .score { font-size: 11px; color: var(--muted); width: 22px; text-align: right; margin-right: 2px; font-variant-numeric: tabular-nums; }
 
   /* Toolbar */
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 12px 0 6px; font-size: 13px; }
   .toolbar label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
   .toolbar select { padding: 4px 6px; font-size: 13px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+  .filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; align-items: center; }
+  .filter-label { font-size: 12px; color: var(--muted); width: 74px; flex: 0 0 auto; }
   .chip { border: 1px solid var(--border); background: var(--bg); border-radius: 999px; padding: 3px 10px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
   .chip.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .chip.tag { border-style: dashed; }
+  .chip.tag.on { border-style: solid; }
   .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
   .count { color: var(--muted); font-size: 12px; }
+  .clear-filters { font-size: 12px; color: var(--accent); background: none; border: none; cursor: pointer; padding: 2px 4px; }
 
   /* List */
   .group-title { margin: 14px 0 4px; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; display: flex; align-items: center; gap: 8px; }
   ul { list-style: none; margin: 0; padding: 0; }
-  li.todo { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  li.todo { border-bottom: 1px solid var(--border); padding: 8px 6px; }
   li.todo:hover { background: var(--panel); }
+  .row { display: flex; align-items: center; gap: 10px; }
   li.todo input[type=checkbox] { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--accent); cursor: pointer; }
-  .text { flex: 1 1 auto; min-width: 0; word-break: break-word; cursor: text; padding: 2px 0; }
-  .text-edit { flex: 1 1 auto; min-width: 0; }
+  .main { flex: 1 1 auto; min-width: 0; }
+  .text { word-break: break-word; cursor: text; }
+  .meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .meta:empty { display: none; }
+  .pill { font-size: 11.5px; border-radius: 999px; padding: 1px 8px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  .pill.tag { border: none; background: var(--panel); color: var(--muted); padding: 1px 6px; }
   li.done .text { text-decoration: line-through; color: var(--muted); }
-  li.done .stars button.lit { opacity: .45; }
-  .cat-tag { flex: 0 0 auto; font-size: 12px; border-radius: 999px; padding: 2px 8px; border: 1px solid var(--border); background: var(--bg); max-width: 130px; }
-  .del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; padding: 0 4px; flex: 0 0 auto; }
-  .del:hover { color: var(--danger); }
+  li.done .hearts button.lit { opacity: .45; }
+  .icon-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0 4px; flex: 0 0 auto; }
+  .icon-btn:hover { color: var(--accent); }
+  .icon-btn.del:hover { color: var(--danger); }
+  .icon-btn.del { font-size: 18px; }
+
+  /* Edit panel */
+  .edit { margin: 8px 0 2px 28px; display: grid; gap: 6px; }
+  .edit label { font-size: 12px; color: var(--muted); display: grid; gap: 3px; }
+  .edit .actions { display: flex; gap: 8px; }
+  .suggest { display: flex; flex-wrap: wrap; gap: 4px; }
+  .suggest:empty { display: none; }
+  .suggest button { font-size: 11.5px; border: 1px dashed var(--border); background: var(--bg); border-radius: 999px; padding: 1px 8px; cursor: pointer; color: var(--muted); }
+  .suggest button:hover { border-color: var(--accent); color: var(--fg); }
+
   .empty { text-align: center; color: var(--muted); padding: 30px 0; }
   .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; color: var(--muted); font-size: 13px; flex-wrap: wrap; gap: 8px; }
 
   .toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: var(--radius); font-size: 14px; display: none; gap: 12px; align-items: center; z-index: 10; }
-  .toast button { background: none; border: none; color: var(--star); font-weight: 600; cursor: pointer; }
+  .toast button { background: none; border: none; color: var(--love); font-weight: 600; cursor: pointer; }
 
   @media (max-width: 560px) {
-    li.todo { flex-wrap: wrap; row-gap: 4px; }
-    li.todo .text, li.todo .text-edit { flex-basis: calc(100% - 60px); }
-    li.todo .stars { margin-left: 28px; }
-    .stars button { font-size: 20px; }
+    .row { flex-wrap: wrap; row-gap: 4px; }
+    .row .main { flex-basis: calc(100% - 100px); }
+    .row .hearts { margin-left: 20px; order: 5; }
+    .row .diff { order: 6; margin-left: 4px; }
+    .row .del { order: 3; }
+    .diff button { height: 22px; padding: 0 3px; }
+    .hearts svg { width: 18px; height: 18px; }
+    .diff .dlabel { display: none; }
+    .row .main { order: 1; }
+    .row .edit-btn { order: 2; }
+    .edit { margin-left: 0; }
+    .filter-label { width: 100%; }
   }
 </style>
 </head>
 <body>
 <div id="app">
   <form class="add" id="addForm" autocomplete="off">
-    <input type="text" id="newText" placeholder="New todo…">
-    <span class="stars" id="newStars"></span>
-    <input type="text" class="cat-input" id="newCat" placeholder="Category" list="catList">
+    <input type="text" id="newText" placeholder="New todo…  (#tags allowed)">
+    <span class="hearts" id="newHearts"></span>
+    <span class="diff" id="newDiff"></span>
+    <input type="text" class="meta-input" id="newCats" placeholder="Categories (comma-separated)">
+    <input type="text" class="meta-input" id="newTags" placeholder="Tags">
     <button class="btn primary" type="submit">Add</button>
-    <datalist id="catList"></datalist>
+    <div class="suggest" id="newSuggest"></div>
   </form>
 
   <div class="toolbar">
     <label>Sort
       <select id="sort1">
-        <option value="stars">Stars</option>
+        <option value="love">Hearts</option>
+        <option value="difficulty">Difficulty</option>
         <option value="category">Category</option>
         <option value="created">Date added</option>
         <option value="text">Name</option>
@@ -101,28 +144,41 @@
     <label>then
       <select id="sort2">
         <option value="none">—</option>
-        <option value="stars">Stars</option>
+        <option value="love">Hearts</option>
+        <option value="difficulty">Difficulty</option>
         <option value="category">Category</option>
         <option value="created">Date added</option>
         <option value="text">Name</option>
       </select>
       <button class="btn small" id="dir2" type="button" title="Toggle direction">↓</button>
     </label>
-    <label>Min stars
-      <select id="minStars">
-        <option value="0">Any</option>
-        <option value="1">★+</option>
-        <option value="2">★★+</option>
-        <option value="3">★★★+</option>
-        <option value="4">★★★★+</option>
-        <option value="5">★★★★★</option>
+    <label>Feeling
+      <select id="feeling">
+        <option value="any">Any</option>
+        <option value="pos">♥ Liked (+1…+5)</option>
+        <option value="pos3">♥♥♥ Loved (+3…+5)</option>
+        <option value="neutral">Neutral (0)</option>
+        <option value="notneg">Not disliked (≥ 0)</option>
+        <option value="neg">Disliked (−1…−5)</option>
+        <option value="neg3">Hated (−3…−5)</option>
+      </select>
+    </label>
+    <label>Difficulty
+      <select id="diffFilter">
+        <option value="any">Any</option>
+        <option value="easy">Easy (1–2)</option>
+        <option value="medium">Medium (3)</option>
+        <option value="hard">Hard (4–5)</option>
+        <option value="notHard">Not hard (≤ 3)</option>
+        <option value="unset">Not rated</option>
       </select>
     </label>
     <button class="btn small" id="groupBtn" type="button">Group by category</button>
     <button class="btn small" id="doneBtn" type="button">Show done</button>
   </div>
 
-  <div class="chips" id="chips"></div>
+  <div class="filter-row" id="catChips"></div>
+  <div class="filter-row" id="tagChips"></div>
   <div id="list"></div>
 
   <div class="footer">
@@ -139,74 +195,116 @@
   "use strict";
 
   // ---------- State ----------
-  const DEFAULT_VIEW = { sort1: "stars", dir1: "desc", sort2: "category", dir2: "asc",
-                         filterCat: null, minStars: 0, groupByCat: false, showDone: true };
-  let state = { version: 1, todos: [], view: { ...DEFAULT_VIEW } };
-  let newStars = 0;
+  const DEFAULT_VIEW = { sort1: "love", dir1: "desc", sort2: "none", dir2: "asc",
+                         filterCat: null, filterTags: [], feeling: "any", diffFilter: "any", groupByCat: false, showDone: true };
+  const FEELINGS = {
+    any: () => true, pos: (n) => n > 0, pos3: (n) => n >= 3, neutral: (n) => n === 0,
+    notneg: (n) => n >= 0, neg: (n) => n < 0, neg3: (n) => n <= -3,
+  };
+  const DIFFS = {
+    any: () => true, easy: (n) => n >= 1 && n <= 2, medium: (n) => n === 3, hard: (n) => n >= 4,
+    notHard: (n) => n >= 1 && n <= 3, unset: (n) => n === 0,
+  };
+  const DIFF_NAMES = ["", "Trivial", "Easy", "Medium", "Hard", "Very hard"];
+  const DIFF_COLORS = ["", "#3fb950", "#8bc34a", "#e3b341", "#f0883e", "#da3633"];
+  let state = { version: 3, todos: [], view: { ...DEFAULT_VIEW } };
+  let newLove = 0;
+  let newDiff = 0;
   let editingId = null;
-  let catEditingId = null;
   let undoStack = null;
 
-  const UNCATEGORIZED = "";
+  const NONE = "";   // the "uncategorized" bucket
   const $ = (id) => document.getElementById(id);
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const cmpStr = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" });
 
   function catColor(name) {
     if (!name) return "var(--muted)";
     let h = 0;
-    for (const ch of name) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+    for (const ch of name.toLowerCase()) h = (h * 31 + ch.codePointAt(0)) >>> 0;
     return `hsl(${h % 360}, 62%, 52%)`;
   }
 
-  function categories() {
-    const set = new Set();
-    state.todos.forEach((t) => set.add(t.category || UNCATEGORIZED));
-    return [...set].sort((a, b) => {
-      if (a === UNCATEGORIZED) return 1;
-      if (b === UNCATEGORIZED) return -1;
-      return a.localeCompare(b, undefined, { sensitivity: "base" });
-    });
+  // Deduplicate case-insensitively, keep the first spelling, drop empties
+  function uniq(list) {
+    const seen = new Set(), out = [];
+    for (const x of list) {
+      const v = String(x).trim();
+      if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); out.push(v); }
+    }
+    return out;
+  }
+  const parseCats = (s) => uniq(String(s || "").split(","));
+  const parseTags = (s) => uniq(String(s || "").split(/[\s,]+/).map((t) => t.replace(/^#+/, "")));
+  const hasCI = (list, v) => list.some((x) => x.toLowerCase() === v.toLowerCase());
+
+  // Pull "#tag" words out of a todo's text
+  function extractTags(text) {
+    const tags = [];
+    const clean = text.replace(/(^|\s)#([^\s#,]+)/g, (_, sp, tag) => { tags.push(tag); return sp; })
+                      .replace(/\s{2,}/g, " ").trim();
+    return { text: clean || text.trim(), tags };
   }
 
-  // ---------- Persistence (Standard Notes or local fallback) ----------
+  function allCategories() {
+    return uniq(state.todos.flatMap((t) => t.categories)).sort(cmpStr);
+  }
+  function allTags() {
+    return uniq(state.todos.flatMap((t) => t.tags)).sort(cmpStr);
+  }
+
+  // ---------- Persistence (Standard Notes, or localStorage when opened directly) ----------
   const inSN = window.parent !== window;
   let relay = null;
   let currentNote = null;
+  let lastSavedText = null;
+
+  function normalizeTodo(t) {
+    let cats = Array.isArray(t.categories) ? t.categories : [];
+    if (!cats.length && t.category) cats = [t.category];          // v1 → v2 migration
+    return {
+      id: t.id || uid(), text: String(t.text || ""), love: Math.max(-5, Math.min(5, (t.love ?? t.stars ?? 0) | 0)),   // v1/v2 "stars" → positive hearts
+      difficulty: Math.max(0, Math.min(5, (t.difficulty ?? 0) | 0)),
+      categories: uniq(cats), tags: uniq((Array.isArray(t.tags) ? t.tags : []).map((x) => String(x).replace(/^#+/, ""))),
+      done: !!t.done, created: t.created || Date.now(), doneAt: t.doneAt || null,
+    };
+  }
 
   function parseText(text) {
-    if (!text || !text.trim()) return { version: 1, todos: [], view: { ...DEFAULT_VIEW } };
+    if (!text || !text.trim()) return { version: 3, todos: [], view: { ...DEFAULT_VIEW } };
     try {
       const data = JSON.parse(text);
       if (data && Array.isArray(data.todos)) {
-        data.view = { ...DEFAULT_VIEW, ...(data.view || {}) };
-        data.todos = data.todos.map((t) => ({
-          id: t.id || uid(), text: String(t.text || ""), stars: Math.max(0, Math.min(5, t.stars | 0)),
-          category: String(t.category || "").trim(), done: !!t.done, created: t.created || Date.now(),
-          doneAt: t.doneAt || null,
-        }));
-        return data;
+        const view = { ...DEFAULT_VIEW, ...(data.view || {}) };
+        ["sort1", "sort2"].forEach((k) => { if (view[k] === "stars") view[k] = "love"; });
+        if (!FEELINGS[view.feeling]) view.feeling = data.view && data.view.minStars > 0 ? "pos" : "any";
+        delete view.minStars;
+        if (!DIFFS[view.diffFilter]) view.diffFilter = "any";
+        if (!Array.isArray(view.filterTags)) view.filterTags = [];
+        return { version: 3, todos: data.todos.map(normalizeTodo), view };
       }
     } catch (e) { /* not JSON: import plain lines below */ }
-    // Plain text note: turn each non-empty line into a todo ("- [x] ..." markdown checkboxes understood)
+    // Plain-text note: each non-empty line becomes a todo ("- [x] …" checkboxes and #tags understood)
     const now = Date.now();
     const todos = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line, i) => {
       const m = line.match(/^[-*]\s*\[( |x|X)\]\s*(.*)$/);
-      return { id: uid(), text: m ? m[2] : line.replace(/^[-*]\s+/, ""), stars: 0, category: "",
-               done: m ? m[1].toLowerCase() === "x" : false, created: now + i, doneAt: null };
+      const ex = extractTags(m ? m[2] : line.replace(/^[-*]\s+/, ""));
+      return normalizeTodo({ text: ex.text, tags: ex.tags, done: m ? m[1].toLowerCase() === "x" : false, created: now + i });
     });
-    return { version: 1, todos, view: { ...DEFAULT_VIEW } };
+    return { version: 3, todos, view: { ...DEFAULT_VIEW } };
   }
 
   function previewText() {
     const open = state.todos.filter((t) => !t.done);
-    const top = [...open].sort((a, b) => b.stars - a.stars).slice(0, 3)
-      .map((t) => `${"★".repeat(t.stars)} ${t.text}`.trim());
+    const top = [...open].sort((a, b) => b.love - a.love).slice(0, 3)
+      .map((t) => (t.love > 0 ? "♥".repeat(t.love) + " " : t.love < 0 ? `(${t.love}) ` : "") + t.text);
     return `${open.length} open / ${state.todos.length} todos` + (top.length ? " — " + top.join(" · ") : "");
   }
 
   function save() {
     const text = JSON.stringify(state, null, 1);
+    lastSavedText = text;
     if (relay && currentNote) {
       const note = currentNote;
       relay.saveItemWithPresave(note, () => {
@@ -221,122 +319,187 @@
 
   function commit() { render(); save(); }
 
-  // ---------- Rendering ----------
-  function starsHTML(n, id) {
-    let h = `<span class="stars" data-id="${id}">`;
-    for (let i = 1; i <= 5; i++) h += `<button type="button" data-star="${i}" class="${i <= n ? "lit" : ""}" aria-label="${i} star${i > 1 ? "s" : ""}">★</button>`;
-    return h + "</span>";
-  }
+  // ---------- Sorting & filtering ----------
+  const catKey = (t) => t.categories.length ? [...t.categories].sort(cmpStr)[0] : null;
 
   function compareBy(key, dir) {
     const s = dir === "asc" ? 1 : -1;
     return (a, b) => {
       let r = 0;
-      if (key === "stars") r = a.stars - b.stars;
+      if (key === "love") r = a.love - b.love;
+      else if (key === "difficulty") {
+        if (!a.difficulty && b.difficulty) return 1;     // not-rated always goes last
+        if (a.difficulty && !b.difficulty) return -1;
+        r = a.difficulty - b.difficulty;
+      }
       else if (key === "created") r = a.created - b.created;
-      else if (key === "text") r = a.text.localeCompare(b.text, undefined, { sensitivity: "base" });
+      else if (key === "text") r = cmpStr(a.text, b.text);
       else if (key === "category") {
-        // Uncategorized always goes last, whatever the direction
-        if (!a.category && b.category) return 1;
-        if (a.category && !b.category) return -1;
-        r = a.category.localeCompare(b.category, undefined, { sensitivity: "base" });
+        // a todo with several categories sorts by the alphabetically first one;
+        // uncategorized always goes last, whatever the direction
+        const ka = catKey(a), kb = catKey(b);
+        if (!ka && kb) return 1;
+        if (ka && !kb) return -1;
+        r = ka && kb ? cmpStr(ka, kb) : 0;
       }
       return r * s;
     };
   }
 
+  function matches(t) {
+    const v = state.view;
+    if (!v.showDone && t.done) return false;
+    if (!FEELINGS[v.feeling](t.love)) return false;
+    if (!DIFFS[v.diffFilter](t.difficulty)) return false;
+    if (v.filterCat !== null) {
+      if (v.filterCat === NONE ? t.categories.length : !hasCI(t.categories, v.filterCat)) return false;
+    }
+    return v.filterTags.every((tag) => hasCI(t.tags, tag));   // must carry ALL selected tags
+  }
+
   function sortedVisible() {
     const v = state.view;
-    let items = state.todos.filter((t) =>
-      (v.showDone || !t.done) &&
-      t.stars >= v.minStars &&
-      (v.filterCat === null || (t.category || UNCATEGORIZED) === v.filterCat));
     const c1 = compareBy(v.sort1, v.dir1);
     const c2 = v.sort2 !== "none" ? compareBy(v.sort2, v.dir2) : () => 0;
     const c3 = compareBy("created", "asc");
-    return items.sort((a, b) => (a.done - b.done) || c1(a, b) || c2(a, b) || c3(a, b));
+    return state.todos.filter(matches).sort((a, b) => (a.done - b.done) || c1(a, b) || c2(a, b) || c3(a, b));
+  }
+
+  // ---------- Rendering ----------
+  const HEART = "M12 21s-7.5-4.6-9.6-9.3C.9 8.3 3 4.5 6.6 4.5c2.1 0 3.6 1.2 5.4 3.1 1.8-1.9 3.3-3.1 5.4-3.1 3.6 0 5.7 3.8 4.2 7.2C19.5 16.4 12 21 12 21z";
+  const heartSVG = (broken) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${HEART}" fill="currentColor"/>` +
+    (broken ? `<path d="M12.6 6.6 10.2 10.4l3 2.2-2.4 4.4" fill="none" stroke="var(--bg)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>` : "") + `</svg>`;
+  // n in [-5, 5]; buttons -5…-1 then +1…+5, lit from the centre outwards
+  function diffHTML(n) {
+    let h = `<span class="dlabel">${DIFF_NAMES[n]}</span>`;
+    for (let i = 1; i <= 5; i++) {
+      const bg = i <= n ? `background:${DIFF_COLORS[n]}` : "";
+      h += `<button type="button" data-diff="${i}" aria-label="Difficulty ${i}: ${DIFF_NAMES[i]}" title="${DIFF_NAMES[i]}"><i style="height:${4 + i * 3}px;${bg}"></i></button>`;
+    }
+    return h;
+  }
+
+  function heartsHTML(n) {
+    let h = `<span class="score">${n > 0 ? "+" + n : n < 0 ? "−" + -n : ""}</span>`;
+    for (let i = -5; i <= 5; i++) {
+      if (i === 0) { h += `<span class="mid"></span>`; continue; }
+      const lit = i < 0 ? n <= i : n >= i;
+      const label = i < 0 ? `${-i} broken heart${i < -1 ? "s" : ""} (dislike)` : `${i} heart${i > 1 ? "s" : ""} (like)`;
+      h += `<button type="button" data-love="${i}" class="${i < 0 ? "neg" : "pos"} ${lit ? "lit" : ""}" aria-label="${label}" title="${i > 0 ? "+" + i : "−" + -i}">${heartSVG(i < 0)}</button>`;
+    }
+    return h;
+  }
+
+  // Clickable suggestions of existing categories/tags not yet in an input
+  function suggestHTML(catsInput, tagsInput) {
+    const haveC = parseCats(catsInput), haveT = parseTags(tagsInput);
+    const c = allCategories().filter((x) => !hasCI(haveC, x))
+      .map((x) => `<button type="button" data-add-cat="${esc(x)}"><span class="dot" style="background:${catColor(x)}"></span> ${esc(x)}</button>`);
+    const t = allTags().filter((x) => !hasCI(haveT, x))
+      .map((x) => `<button type="button" data-add-tag="${esc(x)}">#${esc(x)}</button>`);
+    return c.concat(t).join("");
   }
 
   function todoHTML(t) {
-    const cats = categories().filter(Boolean);
-    const textPart = editingId === t.id
-      ? `<input type="text" class="text-edit" data-id="${t.id}" value="${esc(t.text)}">`
-      : `<span class="text" data-id="${t.id}" title="Tap to edit">${esc(t.text)}</span>`;
-    const opts = [`<option value="">— none —</option>`]
-      .concat(cats.map((c) => `<option value="${esc(c)}" ${c === t.category ? "selected" : ""}>${esc(c)}</option>`))
-      .concat([`<option value="__new__">+ New…</option>`]).join("");
-    const catPart = catEditingId === t.id
-      ? `<input type="text" class="cat-tag cat-new" data-id="${t.id}" placeholder="New category" list="catList">`
-      : `<select class="cat-tag" data-id="${t.id}" style="border-color:${catColor(t.category)}">${opts}</select>`;
-    return `<li class="todo ${t.done ? "done" : ""}" data-id="${t.id}">
-      <input type="checkbox" data-id="${t.id}" ${t.done ? "checked" : ""} aria-label="Done">
-      ${textPart}
-      ${starsHTML(t.stars, t.id)}
-      ${catPart}
-      <button class="del" type="button" data-id="${t.id}" aria-label="Delete">×</button>
-    </li>`;
+    const v = state.view;
+    const pills = t.categories.slice().sort(cmpStr).map((c) =>
+        `<span class="pill" data-cat="${esc(c)}" style="border-color:${catColor(c)}"><span class="dot" style="background:${catColor(c)}"></span>${esc(c)}</span>`)
+      .concat(t.tags.slice().sort(cmpStr).map((g) => `<span class="pill tag" data-tag="${esc(g)}">#${esc(g)}</span>`))
+      .join("");
+    let html = `<li class="todo ${t.done ? "done" : ""}" data-id="${t.id}">
+      <div class="row">
+        <input type="checkbox" data-id="${t.id}" ${t.done ? "checked" : ""} aria-label="Done">
+        <div class="main"><div class="text" data-id="${t.id}" title="Tap to edit">${esc(t.text)}</div><div class="meta">${pills}</div></div>
+        <span class="hearts" data-id="${t.id}">${heartsHTML(t.love)}</span>
+        <span class="diff" data-id="${t.id}">${diffHTML(t.difficulty)}</span>
+        <button class="icon-btn edit-btn" type="button" data-id="${t.id}" aria-label="Edit">✎</button>
+        <button class="icon-btn del" type="button" data-id="${t.id}" aria-label="Delete">×</button>
+      </div>`;
+    if (editingId === t.id) {
+      html += `<div class="edit" data-id="${t.id}">
+        <label>Text<input type="text" class="e-text" value="${esc(t.text)}"></label>
+        <label>Categories (comma-separated)<input type="text" class="e-cats" value="${esc(t.categories.join(", "))}"></label>
+        <label>Tags (space or comma separated)<input type="text" class="e-tags" value="${esc(t.tags.join(" "))}"></label>
+        <div class="suggest">${suggestHTML(t.categories.join(","), t.tags.join(" "))}</div>
+        <div class="actions"><button class="btn small primary e-save" type="button">Save</button><button class="btn small e-cancel" type="button">Cancel</button></div>
+      </div>`;
+    }
+    return html + "</li>";
   }
 
   function render() {
     const v = state.view;
-    // toolbar
     $("sort1").value = v.sort1; $("sort2").value = v.sort2;
     $("dir1").textContent = v.dir1 === "asc" ? "↑" : "↓";
     $("dir2").textContent = v.dir2 === "asc" ? "↑" : "↓";
     $("dir2").disabled = v.sort2 === "none";
-    $("minStars").value = String(v.minStars);
+    $("feeling").value = v.feeling;
+    $("diffFilter").value = v.diffFilter;
     $("groupBtn").classList.toggle("on", v.groupByCat);
     $("doneBtn").classList.toggle("on", v.showDone);
 
-    // new-todo stars + category suggestions
-    $("newStars").innerHTML = starsHTML(newStars, "new").replace(/^<span class="stars" data-id="new">|<\/span>$/g, "");
-    const cats = categories();
-    $("catList").innerHTML = cats.filter(Boolean).map((c) => `<option value="${esc(c)}">`).join("");
+    $("newHearts").innerHTML = heartsHTML(newLove);
+    $("newDiff").innerHTML = diffHTML(newDiff);
+    $("newSuggest").innerHTML = suggestHTML($("newCats").value, $("newTags").value);
 
-    // category chips
-    const counts = {};
-    state.todos.forEach((t) => { if (!t.done) counts[t.category || UNCATEGORIZED] = (counts[t.category || UNCATEGORIZED] || 0) + 1; });
-    let chips = `<button class="chip ${v.filterCat === null ? "on" : ""}" data-cat="__all__" type="button">All</button>`;
-    cats.forEach((c) => {
-      chips += `<button class="chip ${v.filterCat === c ? "on" : ""}" data-cat="${esc(c)}" type="button">
-        <span class="dot" style="background:${catColor(c)}"></span>${c ? esc(c) : "<i>Uncategorized</i>"}
-        <span class="count">${counts[c] || 0}</span></button>`;
-    });
-    $("chips").innerHTML = cats.length ? chips : "";
+    // Category filter chips (single choice)
+    const cats = allCategories();
+    const openTodos = state.todos.filter((t) => !t.done);
+    const catCount = (c) => openTodos.filter((t) => c === NONE ? !t.categories.length : hasCI(t.categories, c)).length;
+    const hasUncat = state.todos.some((t) => !t.categories.length);
+    if (cats.length) {
+      let h = `<span class="filter-label">Categories</span><button class="chip ${v.filterCat === null ? "on" : ""}" data-fcat="__all__" type="button">All</button>`;
+      cats.forEach((c) => {
+        h += `<button class="chip ${v.filterCat !== null && v.filterCat.toLowerCase() === c.toLowerCase() ? "on" : ""}" data-fcat="${esc(c)}" type="button">
+          <span class="dot" style="background:${catColor(c)}"></span>${esc(c)} <span class="count">${catCount(c)}</span></button>`;
+      });
+      if (hasUncat) h += `<button class="chip ${v.filterCat === NONE ? "on" : ""}" data-fcat="" type="button"><i>None</i> <span class="count">${catCount(NONE)}</span></button>`;
+      $("catChips").innerHTML = h;
+    } else $("catChips").innerHTML = "";
 
-    // list
+    // Tag filter chips (multi-select, todo must have all selected tags)
+    const tags = allTags();
+    if (tags.length) {
+      let h = `<span class="filter-label">Tags</span>`;
+      tags.forEach((g) => {
+        const on = hasCI(v.filterTags, g);
+        h += `<button class="chip tag ${on ? "on" : ""}" data-ftag="${esc(g)}" type="button">#${esc(g)} <span class="count">${openTodos.filter((t) => hasCI(t.tags, g)).length}</span></button>`;
+      });
+      if (v.filterTags.length || v.filterCat !== null || v.feeling !== "any" || v.diffFilter !== "any") h += `<button class="clear-filters" id="clearFilters" type="button">Clear filters</button>`;
+      $("tagChips").innerHTML = h;
+    } else {
+      $("tagChips").innerHTML = (v.filterCat !== null || v.feeling !== "any" || v.diffFilter !== "any") ? `<button class="clear-filters" id="clearFilters" type="button">Clear filters</button>` : "";
+    }
+
+    // List
     const items = sortedVisible();
     let html = "";
     if (!items.length) {
       html = `<div class="empty">${state.todos.length ? "Nothing matches these filters." : "No todos yet — add one above."}</div>`;
     } else if (v.groupByCat) {
-      const groups = new Map();
-      cats.forEach((c) => groups.set(c, []));
-      items.forEach((t) => groups.get(t.category || UNCATEGORIZED).push(t));
-      let order = [...groups.keys()].filter((c) => groups.get(c).length);
-      if (v.sort1 === "category" && v.dir1 === "desc") {
-        order = order.filter(Boolean).reverse().concat(order.includes("") ? [""] : []);
-      }
+      // A todo with several categories appears under each of them
+      let order = cats.slice();
+      if (v.sort1 === "category" && v.dir1 === "desc") order.reverse();
+      order.push(NONE);
       order.forEach((c) => {
-        html += `<div class="group-title"><span class="dot" style="background:${catColor(c)}"></span>${c ? esc(c) : "Uncategorized"} <span class="count">${groups.get(c).length}</span></div>`;
-        html += `<ul>${groups.get(c).map(todoHTML).join("")}</ul>`;
+        const inGroup = items.filter((t) => c === NONE ? !t.categories.length : hasCI(t.categories, c));
+        if (!inGroup.length) return;
+        html += `<div class="group-title"><span class="dot" style="background:${catColor(c)}"></span>${c ? esc(c) : "Uncategorized"} <span class="count">${inGroup.length}</span></div>`;
+        html += `<ul>${inGroup.map(todoHTML).join("")}</ul>`;
       });
     } else {
       html = `<ul>${items.map(todoHTML).join("")}</ul>`;
     }
     $("list").innerHTML = html;
 
-    const open = state.todos.filter((t) => !t.done).length;
-    $("summary").textContent = `${open} open · ${state.todos.length - open} done`;
+    const open = openTodos.length;
+    $("summary").textContent = `${open} open · ${state.todos.length - open} done` +
+      (items.length !== state.todos.length ? ` · ${new Set(items.map((t) => t.id)).size} shown` : "");
     $("clearDone").style.visibility = state.todos.some((t) => t.done) ? "visible" : "hidden";
 
-    if (catEditingId) {
-      const ci = document.querySelector(`.cat-new[data-id="${catEditingId}"]`);
-      if (ci) ci.focus();
-    }
     if (editingId) {
-      const inp = document.querySelector(`.text-edit[data-id="${editingId}"]`);
-      if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+      const inp = document.querySelector(`.edit[data-id="${editingId}"] .e-text`);
+      if (inp && !inp.dataset.focused) { inp.focus(); inp.dataset.focused = "1"; }
     }
   }
 
@@ -353,48 +516,99 @@
     if (undoStack) { state.todos = undoStack; undoStack = null; commit(); }
     $("toast").style.display = "none";
   });
+  const snapshot = () => state.todos.map((t) => ({ ...t, categories: [...t.categories], tags: [...t.tags] }));
 
   // ---------- Events ----------
   const find = (id) => state.todos.find((t) => t.id === id);
 
+  function appendToInput(input, value, sep) {
+    const cur = input.value.trim();
+    input.value = cur ? cur.replace(/[,\s]+$/, "") + sep + value : value;
+  }
+
   $("addForm").addEventListener("submit", (e) => {
     e.preventDefault();
-    const text = $("newText").value.trim();
-    if (!text) return;
-    state.todos.push({ id: uid(), text, stars: newStars, category: $("newCat").value.trim(),
-                       done: false, created: Date.now(), doneAt: null });
+    const raw = $("newText").value.trim();
+    if (!raw) return;
+    const ex = extractTags(raw);
+    state.todos.push(normalizeTodo({
+      text: ex.text, love: newLove, difficulty: newDiff, categories: parseCats($("newCats").value),
+      tags: parseTags($("newTags").value).concat(ex.tags), created: Date.now(),
+    }));
     $("newText").value = "";
-    newStars = 0;               // keep category for quick entry of several items
+    newLove = 0; newDiff = 0;  // categories & tags are kept, to enter several similar todos quickly
     commit();
     $("newText").focus();
   });
 
-  $("newStars").addEventListener("click", (e) => {
-    const b = e.target.closest("button[data-star]");
-    if (!b) return;
-    const n = +b.dataset.star;
-    newStars = newStars === n ? 0 : n;
-    render();
+  $("addForm").addEventListener("click", (e) => {
+    const hb = e.target.closest("#newHearts button[data-love]");
+    if (hb) { const n = +hb.dataset.love; newLove = newLove === n ? 0 : n; return render(); }
+    const db = e.target.closest("#newDiff button[data-diff]");
+    if (db) { const n = +db.dataset.diff; newDiff = newDiff === n ? 0 : n; return render(); }
+    const ac = e.target.closest("[data-add-cat]");
+    if (ac) { appendToInput($("newCats"), ac.dataset.addCat, ", "); return render(); }
+    const at = e.target.closest("[data-add-tag]");
+    if (at) { appendToInput($("newTags"), at.dataset.addTag, " "); return render(); }
   });
+  ["newCats", "newTags"].forEach((id) => $(id).addEventListener("input", () => {
+    $("newSuggest").innerHTML = suggestHTML($("newCats").value, $("newTags").value);
+  }));
+
+  function saveEdit(panel) {
+    const t = find(panel.dataset.id);
+    if (!t) return;
+    const ex = extractTags(panel.querySelector(".e-text").value);
+    if (ex.text) t.text = ex.text;
+    t.categories = parseCats(panel.querySelector(".e-cats").value);
+    t.tags = uniq(parseTags(panel.querySelector(".e-tags").value).concat(ex.tags));
+    editingId = null;
+    commit();
+  }
 
   $("list").addEventListener("click", (e) => {
-    const star = e.target.closest(".stars button[data-star]");
-    if (star) {
-      const t = find(star.parentElement.dataset.id);
-      const n = +star.dataset.star;
-      t.stars = t.stars === n ? 0 : n;   // tap the same star again to clear
+    const panel = e.target.closest(".edit");
+    if (panel) {
+      if (e.target.closest(".e-save")) return saveEdit(panel);
+      if (e.target.closest(".e-cancel")) { editingId = null; return render(); }
+      const ac = e.target.closest("[data-add-cat]"), at = e.target.closest("[data-add-tag]");
+      if (ac || at) {
+        if (ac) appendToInput(panel.querySelector(".e-cats"), ac.dataset.addCat, ", ");
+        else appendToInput(panel.querySelector(".e-tags"), at.dataset.addTag, " ");
+        e.target.closest("button").remove();
+      }
+      return;
+    }
+    const db = e.target.closest(".diff button[data-diff]");
+    if (db) {
+      const t = find(db.parentElement.dataset.id);
+      const n = +db.dataset.diff;
+      t.difficulty = t.difficulty === n ? 0 : n;   // tap the same bar again to clear
+      return commit();
+    }
+    const hb = e.target.closest(".hearts button[data-love]");
+    if (hb) {
+      const t = find(hb.parentElement.dataset.id);
+      const n = +hb.dataset.love;
+      t.love = t.love === n ? 0 : n;     // tap the same heart again to go back to neutral
       return commit();
     }
     const del = e.target.closest(".del");
     if (del) {
-      const snapshot = state.todos.map((t) => ({ ...t }));
+      const snap = snapshot();
       const t = find(del.dataset.id);
       state.todos = state.todos.filter((x) => x.id !== del.dataset.id);
+      if (editingId === del.dataset.id) editingId = null;
       commit();
-      return offerUndo(`Deleted “${t.text.slice(0, 30)}”`, snapshot);
+      return offerUndo(`Deleted “${t.text.slice(0, 30)}”`, snap);
     }
-    const txt = e.target.closest(".text");
-    if (txt) { editingId = txt.dataset.id; render(); }
+    // Tapping a category/tag pill on a todo filters by it
+    const pc = e.target.closest(".pill[data-cat]");
+    if (pc) { state.view.filterCat = pc.dataset.cat; return commit(); }
+    const pt = e.target.closest(".pill[data-tag]");
+    if (pt) { if (!hasCI(state.view.filterTags, pt.dataset.tag)) state.view.filterTags.push(pt.dataset.tag); return commit(); }
+    const ed = e.target.closest(".edit-btn") || e.target.closest(".text");
+    if (ed) { editingId = editingId === ed.dataset.id ? null : ed.dataset.id; render(); }
   });
 
   $("list").addEventListener("change", (e) => {
@@ -403,73 +617,59 @@
       const t = find(el.dataset.id);
       t.done = el.checked; t.doneAt = el.checked ? Date.now() : null;
       commit();
-    } else if (el.matches("select.cat-tag")) {
-      const t = find(el.dataset.id);
-      if (el.value === "__new__") { catEditingId = t.id; return render(); }
-      t.category = el.value;
-      commit();
     }
   });
 
-  function finishEdit(input, keep) {
-    const t = find(input.dataset.id);
-    editingId = null;
-    if (keep && t) {
-      const v = input.value.trim();
-      if (v) t.text = v;
-      commit();
-    } else render();
-  }
-  function finishCat(input, keep) {
-    const t = find(input.dataset.id);
-    catEditingId = null;
-    if (keep && t && input.value.trim()) { t.category = input.value.trim(); commit(); }
-    else render();
-  }
   $("list").addEventListener("keydown", (e) => {
-    if (e.target.matches(".cat-new")) {
-      if (e.key === "Enter") { e.preventDefault(); finishCat(e.target, true); }
-      else if (e.key === "Escape") { e.preventDefault(); finishCat(e.target, false); }
-      return;
-    }
-    if (!e.target.matches(".text-edit")) return;
-    if (e.key === "Enter") { e.preventDefault(); finishEdit(e.target, true); }
-    else if (e.key === "Escape") { e.preventDefault(); finishEdit(e.target, false); }
-  });
-  $("list").addEventListener("focusout", (e) => {
-    if (e.target.matches(".text-edit") && editingId === e.target.dataset.id) finishEdit(e.target, true);
-    if (e.target.matches(".cat-new") && catEditingId === e.target.dataset.id) finishCat(e.target, true);
+    const panel = e.target.closest(".edit");
+    if (!panel) return;
+    if (e.key === "Enter") { e.preventDefault(); saveEdit(panel); }
+    else if (e.key === "Escape") { e.preventDefault(); editingId = null; render(); }
   });
 
-  $("chips").addEventListener("click", (e) => {
-    const c = e.target.closest(".chip");
-    if (!c) return;
-    const cat = c.dataset.cat === "__all__" ? null : c.dataset.cat;
-    state.view.filterCat = state.view.filterCat === cat ? null : cat;
-    commit();
-  });
+  function onFilterClick(e) {
+    if (e.target.closest("#clearFilters")) {
+      Object.assign(state.view, { filterCat: null, filterTags: [], feeling: "any", diffFilter: "any" });
+      return commit();
+    }
+    const c = e.target.closest("[data-fcat]");
+    if (c) {
+      const cat = c.dataset.fcat === "__all__" ? null : c.dataset.fcat;
+      state.view.filterCat = state.view.filterCat === cat ? null : cat;
+      return commit();
+    }
+    const g = e.target.closest("[data-ftag]");
+    if (g) {
+      const tag = g.dataset.ftag, ft = state.view.filterTags;
+      state.view.filterTags = hasCI(ft, tag) ? ft.filter((x) => x.toLowerCase() !== tag.toLowerCase()) : ft.concat(tag);
+      return commit();
+    }
+  }
+  $("catChips").addEventListener("click", onFilterClick);
+  $("tagChips").addEventListener("click", onFilterClick);
 
   $("sort1").addEventListener("change", (e) => {
     state.view.sort1 = e.target.value;
-    state.view.dir1 = e.target.value === "stars" ? "desc" : "asc";
+    state.view.dir1 = e.target.value === "love" ? "desc" : "asc";
     commit();
   });
   $("sort2").addEventListener("change", (e) => {
     state.view.sort2 = e.target.value;
-    state.view.dir2 = e.target.value === "stars" ? "desc" : "asc";
+    state.view.dir2 = e.target.value === "love" ? "desc" : "asc";
     commit();
   });
   $("dir1").addEventListener("click", () => { state.view.dir1 = state.view.dir1 === "asc" ? "desc" : "asc"; commit(); });
   $("dir2").addEventListener("click", () => { state.view.dir2 = state.view.dir2 === "asc" ? "desc" : "asc"; commit(); });
-  $("minStars").addEventListener("change", (e) => { state.view.minStars = +e.target.value; commit(); });
+  $("feeling").addEventListener("change", (e) => { state.view.feeling = e.target.value; commit(); });
+  $("diffFilter").addEventListener("change", (e) => { state.view.diffFilter = e.target.value; commit(); });
   $("groupBtn").addEventListener("click", () => { state.view.groupByCat = !state.view.groupByCat; commit(); });
   $("doneBtn").addEventListener("click", () => { state.view.showDone = !state.view.showDone; commit(); });
   $("clearDone").addEventListener("click", () => {
-    const snapshot = state.todos.map((t) => ({ ...t }));
+    const snap = snapshot();
     const n = state.todos.filter((t) => t.done).length;
     state.todos = state.todos.filter((t) => !t.done);
     commit();
-    offerUndo(`Cleared ${n} done`, snapshot);
+    offerUndo(`Cleared ${n} done`, snap);
   });
 
   // ---------- Boot ----------
@@ -483,7 +683,8 @@
           const isNewNote = !currentNote || currentNote.uuid !== note.uuid;
           currentNote = note;
           if (note.isMetadataUpdate) return;
-          if (isNewNote) { editingId = null; catEditingId = null; }
+          if (!isNewNote && note.content.text === lastSavedText) return;   // our own save echoed back
+          if (isNewNote) editingId = null;
           state = parseText(note.content.text || "");
           render();
         });
