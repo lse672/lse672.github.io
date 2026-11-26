@@ -45,12 +45,19 @@
   .hearts button.lit.pos { color: var(--love); }
   .hearts button.lit.neg { color: var(--hate); }
   .hearts .mid { width: 1px; height: 14px; background: var(--border); margin: 0 4px; }
-  /* Difficulty: 5 rising bars, 0 = not set */
-  .diff { display: inline-flex; align-items: flex-end; gap: 0; user-select: none; flex: 0 0 auto; margin-left: 6px; }
-  .diff button { background: none; border: none; padding: 0 2px; cursor: pointer; height: 20px; display: flex; align-items: flex-end; }
-  .diff button i { display: block; width: 6px; border-radius: 1.5px; background: var(--border); }
-  .diff .dlabel { font-size: 11px; color: var(--muted); width: 38px; text-align: right; margin-right: 3px; align-self: center; }
-  li.done .diff button i { opacity: .45; }
+  /* Ratings line: hearts + 1–5 bar scales (difficulty, install, understand) */
+  .ratings { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 5px; }
+  .add .ratings { flex-basis: 100%; margin-top: 0; }
+  .scale { display: inline-flex; align-items: flex-end; user-select: none; flex: 0 0 auto; }
+  .scale .slabel { font-size: 11px; color: var(--muted); margin-right: 4px; align-self: center; }
+  .scale .slabel b { font-weight: 600; color: var(--fg); }
+  .scale button { background: none; border: none; padding: 0 2px; cursor: pointer; height: 20px; display: flex; align-items: flex-end; }
+  .scale button i { display: block; width: 6px; border-radius: 1.5px; background: var(--border); }
+  li.done .scale button i { opacity: .45; }
+  .scale button.face { font-size: 16px; line-height: 20px; align-items: center; padding: 0 1px; filter: grayscale(1); opacity: .3; transition: transform .1s; }
+  .scale button.face:hover { opacity: .7; }
+  .scale button.face.lit { filter: none; opacity: 1; transform: scale(1.25); }
+  li.done .scale button.face.lit { opacity: .55; }
   .hearts .score { font-size: 11px; color: var(--muted); width: 22px; text-align: right; margin-right: 2px; font-variant-numeric: tabular-nums; }
 
   /* Toolbar */
@@ -102,17 +109,16 @@
   .toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: var(--radius); font-size: 14px; display: none; gap: 12px; align-items: center; z-index: 10; }
   .toast button { background: none; border: none; color: var(--love); font-weight: 600; cursor: pointer; }
 
+  #filtersBtn { display: none; }
   @media (max-width: 560px) {
-    .row { flex-wrap: wrap; row-gap: 4px; }
-    .row .main { flex-basis: calc(100% - 100px); }
-    .row .hearts { margin-left: 20px; order: 5; }
-    .row .diff { order: 6; margin-left: 4px; }
-    .row .del { order: 3; }
-    .diff button { height: 22px; padding: 0 3px; }
-    .hearts svg { width: 18px; height: 18px; }
-    .diff .dlabel { display: none; }
-    .row .main { order: 1; }
-    .row .edit-btn { order: 2; }
+    #filtersBtn { display: inline-block; }
+    body:not(.filters-open) #filterBox { display: none !important; }
+    .row { align-items: flex-start; gap: 8px; }
+    .ratings { gap: 4px 10px; }
+    .row input[type=checkbox], .row .icon-btn { margin-top: 2px; }
+    .scale button { height: 22px; padding: 0 3px; }
+    .scale button.face { font-size: 19px; padding: 0 2px; }
+    .hearts svg { width: 19px; height: 19px; }
     .edit { margin-left: 0; }
     .filter-label { width: 100%; }
   }
@@ -122,11 +128,10 @@
 <div id="app">
   <form class="add" id="addForm" autocomplete="off">
     <input type="text" id="newText" placeholder="New todo…  (#tags allowed)">
-    <span class="hearts" id="newHearts"></span>
-    <span class="diff" id="newDiff"></span>
     <input type="text" class="meta-input" id="newCats" placeholder="Categories (comma-separated)">
     <input type="text" class="meta-input" id="newTags" placeholder="Tags">
     <button class="btn primary" type="submit">Add</button>
+    <div class="ratings" id="newRatings"></div>
     <div class="suggest" id="newSuggest"></div>
   </form>
 
@@ -135,6 +140,9 @@
       <select id="sort1">
         <option value="love">Hearts</option>
         <option value="difficulty">Difficulty</option>
+        <option value="installEase">Setup ease</option>
+        <option value="understandEase">Understand ease</option>
+        <option value="strategy">Strategy</option>
         <option value="category">Category</option>
         <option value="created">Date added</option>
         <option value="text">Name</option>
@@ -146,12 +154,17 @@
         <option value="none">—</option>
         <option value="love">Hearts</option>
         <option value="difficulty">Difficulty</option>
+        <option value="installEase">Setup ease</option>
+        <option value="understandEase">Understand ease</option>
+        <option value="strategy">Strategy</option>
         <option value="category">Category</option>
         <option value="created">Date added</option>
         <option value="text">Name</option>
       </select>
       <button class="btn small" id="dir2" type="button" title="Toggle direction">↓</button>
     </label>
+    <button class="btn small" id="filtersBtn" type="button">Filters</button>
+    <span id="filterBox" style="display:contents">
     <label>Feeling
       <select id="feeling">
         <option value="any">Any</option>
@@ -163,16 +176,8 @@
         <option value="neg3">Hated (−3…−5)</option>
       </select>
     </label>
-    <label>Difficulty
-      <select id="diffFilter">
-        <option value="any">Any</option>
-        <option value="easy">Easy (1–2)</option>
-        <option value="medium">Medium (3)</option>
-        <option value="hard">Hard (4–5)</option>
-        <option value="notHard">Not hard (≤ 3)</option>
-        <option value="unset">Not rated</option>
-      </select>
-    </label>
+    <span id="scaleFilters" style="display:contents"></span>
+    </span>
     <button class="btn small" id="groupBtn" type="button">Group by category</button>
     <button class="btn small" id="doneBtn" type="button">Show done</button>
   </div>
@@ -196,20 +201,46 @@
 
   // ---------- State ----------
   const DEFAULT_VIEW = { sort1: "love", dir1: "desc", sort2: "none", dir2: "asc",
-                         filterCat: null, filterTags: [], feeling: "any", diffFilter: "any", groupByCat: false, showDone: true };
+                         filterCat: null, filterTags: [], feeling: "any", scaleFilters: {}, groupByCat: false, showDone: true };
   const FEELINGS = {
     any: () => true, pos: (n) => n > 0, pos3: (n) => n >= 3, neutral: (n) => n === 0,
     notneg: (n) => n >= 0, neg: (n) => n < 0, neg3: (n) => n <= -3,
   };
-  const DIFFS = {
-    any: () => true, easy: (n) => n >= 1 && n <= 2, medium: (n) => n === 3, hard: (n) => n >= 4,
-    notHard: (n) => n >= 1 && n <= 3, unset: (n) => n === 0,
-  };
-  const DIFF_NAMES = ["", "Trivial", "Easy", "Medium", "Hard", "Very hard"];
-  const DIFF_COLORS = ["", "#3fb950", "#8bc34a", "#e3b341", "#f0883e", "#da3633"];
+  // 1–5 bar scales; 0 = not rated. "bestFirst" = default sort direction (easiest first).
+  const GREEN_TO_RED = ["", "#3fb950", "#8bc34a", "#e3b341", "#f0883e", "#da3633"];
+  const RED_TO_GREEN = ["", "#da3633", "#f0883e", "#e3b341", "#8bc34a", "#3fb950"];
+  const EASE_NAMES = ["", "Mind-blowing", "Hard", "OK", "Easy", "Very easy"];
+  const FACES = ["", "🤯", "😵‍💫", "😐", "🙂", "😀"];
+  const BLUES = ["", "#9ecae1", "#6baed6", "#4292c6", "#2171b5", "#08519c"];
+  const EASE_FILTERS = [
+    ["easy", "Easy (4–5)", (n) => n >= 4], ["ok", "OK or easier (≥ 3)", (n) => n >= 3],
+    ["hard", "Hard (1–2)", (n) => n >= 1 && n <= 2], ["unset", "Not rated", (n) => n === 0],
+  ];
+  const SCALES = [
+    { key: "difficulty", short: "Difficulty", label: "Difficulty", bestFirst: "asc",
+      names: ["", "Trivial", "Easy", "Medium", "Hard", "Very hard"], colors: GREEN_TO_RED,
+      filters: [["easy", "Easy (1–2)", (n) => n >= 1 && n <= 2], ["medium", "Medium (3)", (n) => n === 3],
+                ["hard", "Hard (4–5)", (n) => n >= 4], ["notHard", "Not hard (≤ 3)", (n) => n >= 1 && n <= 3],
+                ["unset", "Not rated", (n) => n === 0]] },
+    // Ease scales shown as faces: 😀 very easy … 🤯 mind-blowing (stored as 5 = easiest)
+    { key: "installEase", short: "Setup", label: "Setup", bestFirst: "desc", style: "faces",
+      names: EASE_NAMES, faces: FACES, filters: EASE_FILTERS },
+    { key: "understandEase", short: "Understand", label: "Understand", bestFirst: "desc", style: "faces",
+      names: EASE_NAMES, faces: FACES, filters: EASE_FILTERS },
+    // Strategic depth: independent of difficulty (a game can be easy yet very strategic)
+    { key: "strategy", short: "Strategy", label: "Strategy", bestFirst: "desc",
+      names: ["", "Pure luck", "Light", "Moderate", "Deep", "Very deep"], colors: BLUES,
+      filters: [["light", "Light (1–2)", (n) => n >= 1 && n <= 2], ["moderate", "Moderate (3)", (n) => n === 3],
+                ["deep", "Deep (4–5)", (n) => n >= 4], ["unset", "Not rated", (n) => n === 0]] },
+  ];
+  const defaultDir = (key) => key === "love" ? "desc" : SCALE[key] ? SCALE[key].bestFirst : "asc";
+  const SCALE = Object.fromEntries(SCALES.map((sc) => [sc.key, sc]));
+  const scaleFilterFn = (sc, v) => (sc.filters.find((f) => f[0] === v) || [null, null, () => true])[2];
+  const filtersActive = (v) => v.filterCat !== null || v.filterTags.length || v.feeling !== "any" ||
+    SCALES.some((sc) => (v.scaleFilters[sc.key] || "any") !== "any");
   let state = { version: 3, todos: [], view: { ...DEFAULT_VIEW } };
   let newLove = 0;
-  let newDiff = 0;
+  let newScales = Object.fromEntries(SCALES.map((sc) => [sc.key, 0]));
   let editingId = null;
   let undoStack = null;
 
@@ -265,7 +296,7 @@
     if (!cats.length && t.category) cats = [t.category];          // v1 → v2 migration
     return {
       id: t.id || uid(), text: String(t.text || ""), love: Math.max(-5, Math.min(5, (t.love ?? t.stars ?? 0) | 0)),   // v1/v2 "stars" → positive hearts
-      difficulty: Math.max(0, Math.min(5, (t.difficulty ?? 0) | 0)),
+      ...Object.fromEntries(SCALES.map((sc) => [sc.key, Math.max(0, Math.min(5, (t[sc.key] ?? 0) | 0))])),
       categories: uniq(cats), tags: uniq((Array.isArray(t.tags) ? t.tags : []).map((x) => String(x).replace(/^#+/, ""))),
       done: !!t.done, created: t.created || Date.now(), doneAt: t.doneAt || null,
     };
@@ -280,7 +311,9 @@
         ["sort1", "sort2"].forEach((k) => { if (view[k] === "stars") view[k] = "love"; });
         if (!FEELINGS[view.feeling]) view.feeling = data.view && data.view.minStars > 0 ? "pos" : "any";
         delete view.minStars;
-        if (!DIFFS[view.diffFilter]) view.diffFilter = "any";
+        view.scaleFilters = { ...(view.scaleFilters || {}) };
+        if (view.diffFilter && !view.scaleFilters.difficulty) view.scaleFilters.difficulty = view.diffFilter;  // v3.1
+        delete view.diffFilter;
         if (!Array.isArray(view.filterTags)) view.filterTags = [];
         return { version: 3, todos: data.todos.map(normalizeTodo), view };
       }
@@ -327,10 +360,10 @@
     return (a, b) => {
       let r = 0;
       if (key === "love") r = a.love - b.love;
-      else if (key === "difficulty") {
-        if (!a.difficulty && b.difficulty) return 1;     // not-rated always goes last
-        if (a.difficulty && !b.difficulty) return -1;
-        r = a.difficulty - b.difficulty;
+      else if (SCALE[key]) {
+        if (!a[key] && b[key]) return 1;     // not-rated always goes last
+        if (a[key] && !b[key]) return -1;
+        r = a[key] - b[key];
       }
       else if (key === "created") r = a.created - b.created;
       else if (key === "text") r = cmpStr(a.text, b.text);
@@ -350,7 +383,7 @@
     const v = state.view;
     if (!v.showDone && t.done) return false;
     if (!FEELINGS[v.feeling](t.love)) return false;
-    if (!DIFFS[v.diffFilter](t.difficulty)) return false;
+    if (!SCALES.every((sc) => scaleFilterFn(sc, v.scaleFilters[sc.key])(t[sc.key]))) return false;
     if (v.filterCat !== null) {
       if (v.filterCat === NONE ? t.categories.length : !hasCI(t.categories, v.filterCat)) return false;
     }
@@ -370,13 +403,26 @@
   const heartSVG = (broken) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${HEART}" fill="currentColor"/>` +
     (broken ? `<path d="M12.6 6.6 10.2 10.4l3 2.2-2.4 4.4" fill="none" stroke="var(--bg)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>` : "") + `</svg>`;
   // n in [-5, 5]; buttons -5…-1 then +1…+5, lit from the centre outwards
-  function diffHTML(n) {
-    let h = `<span class="dlabel">${DIFF_NAMES[n]}</span>`;
-    for (let i = 1; i <= 5; i++) {
-      const bg = i <= n ? `background:${DIFF_COLORS[n]}` : "";
-      h += `<button type="button" data-diff="${i}" aria-label="Difficulty ${i}: ${DIFF_NAMES[i]}" title="${DIFF_NAMES[i]}"><i style="height:${4 + i * 3}px;${bg}"></i></button>`;
+  function scaleHTML(sc, n, id) {
+    let h = `<span class="scale" data-id="${id}" data-key="${sc.key}" title="${sc.label}: ${n ? sc.names[n] : "not rated"}">` +
+            `<span class="slabel">${sc.short}${n ? ` <b>${sc.names[n]}</b>` : ""}</span>`;
+    if (sc.style === "faces") {
+      // single choice, easiest on the left → 🤯 on the right
+      for (let i = 5; i >= 1; i--) {
+        h += `<button type="button" class="face ${i === n ? "lit" : ""}" data-level="${i}" aria-label="${sc.label}: ${sc.names[i]}" title="${sc.names[i]}">${sc.faces[i]}</button>`;
+      }
+      return h + "</span>";
     }
-    return h;
+    for (let i = 1; i <= 5; i++) {
+      const bg = i <= n ? `background:${sc.colors[n]}` : "";
+      h += `<button type="button" data-level="${i}" aria-label="${sc.label} ${i}: ${sc.names[i]}"><i style="height:${4 + i * 3}px;${bg}"></i></button>`;
+    }
+    return h + "</span>";
+  }
+
+  function ratingsHTML(vals, id) {
+    return `<span class="hearts" data-id="${id}">${heartsHTML(vals.love)}</span>` +
+      SCALES.map((sc) => scaleHTML(sc, vals[sc.key], id)).join("");
   }
 
   function heartsHTML(n) {
@@ -409,9 +455,8 @@
     let html = `<li class="todo ${t.done ? "done" : ""}" data-id="${t.id}">
       <div class="row">
         <input type="checkbox" data-id="${t.id}" ${t.done ? "checked" : ""} aria-label="Done">
-        <div class="main"><div class="text" data-id="${t.id}" title="Tap to edit">${esc(t.text)}</div><div class="meta">${pills}</div></div>
-        <span class="hearts" data-id="${t.id}">${heartsHTML(t.love)}</span>
-        <span class="diff" data-id="${t.id}">${diffHTML(t.difficulty)}</span>
+        <div class="main"><div class="text" data-id="${t.id}" title="Tap to edit">${esc(t.text)}</div><div class="meta">${pills}</div>
+          <div class="ratings">${ratingsHTML(t, t.id)}</div></div>
         <button class="icon-btn edit-btn" type="button" data-id="${t.id}" aria-label="Edit">✎</button>
         <button class="icon-btn del" type="button" data-id="${t.id}" aria-label="Delete">×</button>
       </div>`;
@@ -434,12 +479,14 @@
     $("dir2").textContent = v.dir2 === "asc" ? "↑" : "↓";
     $("dir2").disabled = v.sort2 === "none";
     $("feeling").value = v.feeling;
-    $("diffFilter").value = v.diffFilter;
+    SCALES.forEach((sc) => { $("sf-" + sc.key).value = v.scaleFilters[sc.key] || "any"; });
     $("groupBtn").classList.toggle("on", v.groupByCat);
+    const nActive = (v.feeling !== "any") + SCALES.filter((sc) => (v.scaleFilters[sc.key] || "any") !== "any").length;
+    $("filtersBtn").textContent = `Filters${nActive ? ` (${nActive})` : ""} ${document.body.classList.contains("filters-open") ? "▴" : "▾"}`;
+    $("filtersBtn").classList.toggle("on", nActive > 0);
     $("doneBtn").classList.toggle("on", v.showDone);
 
-    $("newHearts").innerHTML = heartsHTML(newLove);
-    $("newDiff").innerHTML = diffHTML(newDiff);
+    $("newRatings").innerHTML = ratingsHTML({ love: newLove, ...newScales }, "new");
     $("newSuggest").innerHTML = suggestHTML($("newCats").value, $("newTags").value);
 
     // Category filter chips (single choice)
@@ -465,10 +512,10 @@
         const on = hasCI(v.filterTags, g);
         h += `<button class="chip tag ${on ? "on" : ""}" data-ftag="${esc(g)}" type="button">#${esc(g)} <span class="count">${openTodos.filter((t) => hasCI(t.tags, g)).length}</span></button>`;
       });
-      if (v.filterTags.length || v.filterCat !== null || v.feeling !== "any" || v.diffFilter !== "any") h += `<button class="clear-filters" id="clearFilters" type="button">Clear filters</button>`;
+      if (filtersActive(v)) h += `<button class="clear-filters" id="clearFilters" type="button">Clear filters</button>`;
       $("tagChips").innerHTML = h;
     } else {
-      $("tagChips").innerHTML = (v.filterCat !== null || v.feeling !== "any" || v.diffFilter !== "any") ? `<button class="clear-filters" id="clearFilters" type="button">Clear filters</button>` : "";
+      $("tagChips").innerHTML = filtersActive(v) ? `<button class="clear-filters" id="clearFilters" type="button">Clear filters</button>` : "";
     }
 
     // List
@@ -532,20 +579,20 @@
     if (!raw) return;
     const ex = extractTags(raw);
     state.todos.push(normalizeTodo({
-      text: ex.text, love: newLove, difficulty: newDiff, categories: parseCats($("newCats").value),
+      text: ex.text, love: newLove, ...newScales, categories: parseCats($("newCats").value),
       tags: parseTags($("newTags").value).concat(ex.tags), created: Date.now(),
     }));
     $("newText").value = "";
-    newLove = 0; newDiff = 0;  // categories & tags are kept, to enter several similar todos quickly
+    newLove = 0; SCALES.forEach((sc) => { newScales[sc.key] = 0; });  // categories & tags are kept, to enter several similar todos quickly
     commit();
     $("newText").focus();
   });
 
   $("addForm").addEventListener("click", (e) => {
-    const hb = e.target.closest("#newHearts button[data-love]");
+    const hb = e.target.closest(".hearts button[data-love]");
     if (hb) { const n = +hb.dataset.love; newLove = newLove === n ? 0 : n; return render(); }
-    const db = e.target.closest("#newDiff button[data-diff]");
-    if (db) { const n = +db.dataset.diff; newDiff = newDiff === n ? 0 : n; return render(); }
+    const sb = e.target.closest(".scale button[data-level]");
+    if (sb) { const k = sb.parentElement.dataset.key, n = +sb.dataset.level; newScales[k] = newScales[k] === n ? 0 : n; return render(); }
     const ac = e.target.closest("[data-add-cat]");
     if (ac) { appendToInput($("newCats"), ac.dataset.addCat, ", "); return render(); }
     const at = e.target.closest("[data-add-tag]");
@@ -579,11 +626,11 @@
       }
       return;
     }
-    const db = e.target.closest(".diff button[data-diff]");
-    if (db) {
-      const t = find(db.parentElement.dataset.id);
-      const n = +db.dataset.diff;
-      t.difficulty = t.difficulty === n ? 0 : n;   // tap the same bar again to clear
+    const sb = e.target.closest(".scale button[data-level]");
+    if (sb) {
+      const t = find(sb.parentElement.dataset.id), k = sb.parentElement.dataset.key;
+      const n = +sb.dataset.level;
+      t[k] = t[k] === n ? 0 : n;   // tap the same bar again to clear
       return commit();
     }
     const hb = e.target.closest(".hearts button[data-love]");
@@ -629,7 +676,7 @@
 
   function onFilterClick(e) {
     if (e.target.closest("#clearFilters")) {
-      Object.assign(state.view, { filterCat: null, filterTags: [], feeling: "any", diffFilter: "any" });
+      Object.assign(state.view, { filterCat: null, filterTags: [], feeling: "any", scaleFilters: {} });
       return commit();
     }
     const c = e.target.closest("[data-fcat]");
@@ -650,18 +697,26 @@
 
   $("sort1").addEventListener("change", (e) => {
     state.view.sort1 = e.target.value;
-    state.view.dir1 = e.target.value === "love" ? "desc" : "asc";
+    state.view.dir1 = defaultDir(e.target.value);
     commit();
   });
   $("sort2").addEventListener("change", (e) => {
     state.view.sort2 = e.target.value;
-    state.view.dir2 = e.target.value === "love" ? "desc" : "asc";
+    state.view.dir2 = defaultDir(e.target.value);
     commit();
   });
   $("dir1").addEventListener("click", () => { state.view.dir1 = state.view.dir1 === "asc" ? "desc" : "asc"; commit(); });
   $("dir2").addEventListener("click", () => { state.view.dir2 = state.view.dir2 === "asc" ? "desc" : "asc"; commit(); });
   $("feeling").addEventListener("change", (e) => { state.view.feeling = e.target.value; commit(); });
-  $("diffFilter").addEventListener("change", (e) => { state.view.diffFilter = e.target.value; commit(); });
+  // One filter dropdown per 1–5 scale
+  $("scaleFilters").innerHTML = SCALES.map((sc) => `<label>${sc.label}<select id="sf-${sc.key}" data-key="${sc.key}">` +
+    `<option value="any">Any</option>` + sc.filters.map((f) => `<option value="${f[0]}">${f[1]}</option>`).join("") +
+    `</select></label>`).join("");
+  $("scaleFilters").addEventListener("change", (e) => {
+    const k = e.target.dataset.key;
+    if (k) { state.view.scaleFilters = { ...state.view.scaleFilters, [k]: e.target.value }; commit(); }
+  });
+  $("filtersBtn").addEventListener("click", () => { document.body.classList.toggle("filters-open"); render(); });
   $("groupBtn").addEventListener("click", () => { state.view.groupByCat = !state.view.groupByCat; commit(); });
   $("doneBtn").addEventListener("click", () => { state.view.showDone = !state.view.showDone; commit(); });
   $("clearDone").addEventListener("click", () => {
