@@ -40,8 +40,16 @@
 
   /* Hearts: -5 … -1 (broken, left) | +1 … +5 (right) */
   /* Feeling: one heart (broken & purple below 0, filling up & deepening red above 0); tap → vertical picker */
-  .hearts { user-select: none; }
-  .hearts svg { display: block; }
+  .hearts { user-select: none; display: inline-flex; align-items: center; flex: 0 0 auto; position: relative; }
+  .hearts button { background: none; border: none; cursor: pointer; padding: 0 2px; height: 26px; display: flex; }
+  .hearts button.neg { align-items: flex-start; padding-top: 13px; }   /* bar hangs down from the centre */
+  .hearts button.pos { align-items: flex-end; padding-bottom: 13px; }  /* bar rises up from the centre */
+  .hearts button i { display: block; width: 6px; border-radius: 1.5px; background: var(--border); }
+  .hearts .hmid { width: 2px; height: 2px; border-radius: 50%; background: var(--muted); margin: 0 2px; }
+  .hearts::before { content: ""; position: absolute; left: 0; right: 24px; top: 50%; border-top: 1px solid var(--border); pointer-events: none; }
+  .hearts .heart-now { margin-left: 5px; line-height: 0; }
+  .hearts .heart-now svg { width: 20px; height: 20px; display: block; }
+  li.done .hearts { opacity: .55; }
   .heart-trigger svg { width: 20px; height: 20px; }
   .face-menu.hearts-menu { min-width: 170px; }
   .face-menu .num { font-variant-numeric: tabular-nums; width: 22px; text-align: right; color: var(--muted); font-size: 12px; }
@@ -134,7 +142,10 @@
     .scale button.face-trigger { font-size: 20px; height: 26px; }
     .scale .face-now { font-size: 20px; }
     .face-menu button { padding: 7px 10px !important; font-size: 14px; }
-    .heart-trigger svg { width: 23px; height: 23px; }
+    .hearts button { padding: 0 3px; height: 30px; }
+    .hearts button.neg { padding-top: 15px; }
+    .hearts button.pos { padding-bottom: 15px; }
+    .hearts .heart-now svg { width: 22px; height: 22px; }
     .edit { margin-left: 0; }
     .filter-label { width: 100%; }
   }
@@ -460,17 +471,17 @@
       SCALES.map((sc) => scaleHTML(sc, vals[sc.key], id)).join("");
   }
 
+  // Diverging bars: −5 … −1 hang below the centre line (purple), +1 … +5 rise above it (red),
+  // lit from the centre outwards; then the heart / broken heart for the current value.
   function heartsHTML(n, id) {
-    const pid = id + "|love", open = openPicker === pid;
-    let h = `<span class="scale faces hearts" data-id="${id}" title="Feeling: ${signed(n)} ${LOVE_NAMES[n]}">` +
-            `<button type="button" class="face-trigger heart-trigger ${open ? "open" : ""}" data-picker="${pid}" aria-label="Feeling: ${signed(n)} ${LOVE_NAMES[n]}">${heartIcon(n)}</button>`;
-    if (open) {
-      h += `<span class="face-menu hearts-menu">`;
-      for (let i = 5; i >= -5; i--)     // +5 at the top → −5 at the bottom
-        h += `<button type="button" class="${i === n ? "lit" : ""} ${i === 0 ? "zero" : ""}" data-love="${i}"><span class="num">${signed(i)}</span><span class="f">${heartIcon(i)}</span>${LOVE_NAMES[i]}</button>`;
-      h += `</span>`;
+    let h = `<span class="hearts" data-id="${id}" title="Feeling: ${signed(n)} ${LOVE_NAMES[n]}">`;
+    for (let i = -5; i <= 5; i++) {
+      if (i === 0) { h += `<span class="hmid"></span>`; continue; }
+      const lit = i < 0 ? n <= i : n >= i;
+      const bg = lit ? `background:${n < 0 ? HATE_COLORS[-n - 1] : LOVE_COLORS[n - 1]}` : "";
+      h += `<button type="button" class="${i < 0 ? "neg" : "pos"}" data-love="${i}" aria-label="${signed(i)} ${LOVE_NAMES[i]}" title="${signed(i)} ${LOVE_NAMES[i]}"><i style="height:${2 + Math.abs(i) * 2}px;${bg}"></i></button>`;
     }
-    return h + "</span>";
+    return h + `<span class="heart-now">${heartIcon(n)}</span></span>`;
   }
 
   // Clickable suggestions of existing categories/tags not yet in an input
@@ -631,7 +642,7 @@
 
   $("addForm").addEventListener("click", (e) => {
     const hb = e.target.closest(".hearts button[data-love]");
-    if (hb) { newLove = +hb.dataset.love; openPicker = null; return render(); }
+    if (hb) { const v = +hb.dataset.love; newLove = newLove === v ? 0 : v; return render(); }
     const pk = e.target.closest("[data-picker]");
     if (pk) { openPicker = openPicker === pk.dataset.picker ? null : pk.dataset.picker; return render(); }
     const sb = e.target.closest(".scale button[data-level]");
@@ -682,8 +693,8 @@
     const hb = e.target.closest(".hearts button[data-love]");
     if (hb) {
       const t = find(hb.closest(".hearts").dataset.id);
-      t.love = +hb.dataset.love;
-      openPicker = null;
+      const v = +hb.dataset.love;
+      t.love = t.love === v ? 0 : v;     // tap the same bar again to go back to neutral
       return commit();
     }
     const del = e.target.closest(".del");
