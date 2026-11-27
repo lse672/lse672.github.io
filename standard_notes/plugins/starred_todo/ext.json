@@ -1,9 +1,10 @@
 {
   "identifier": "io.github.lse672.starred-todo",
-  "name": "Starred Todo",
+  "name": "Heart Todo",
   "content_type": "SN|Component",
   "area": "editor-editor",
-  "version": "1.0.0",
-  "description": "Todo list with 0–5 star priority and categories; sort, filter and group by stars and category.",
-  "url": "https://lse672.github.io/standard_notes/plugins/starred_todo/index.html"
+  "version": "3.8.1",
+  "description": "Todo list with a −5…+5 heart score (love ↔ hate), 1–5 difficulty, setup, understand and strategy scales, multiple categories and tags; sort, filter and group by any rating, categories and tags.",
+  "url": "https://lse672.github.io/standard_notes/plugins/starred_todo/index.html",
+  "latest_url": "https://lse672.github.io/standard_notes/plugins/starred_todo/ext.json"
 }
