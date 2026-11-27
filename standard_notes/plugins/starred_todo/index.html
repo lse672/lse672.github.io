@@ -252,7 +252,7 @@
   window.setTimeout = (fn, ms) => nativeST(typeof fn === "function" ? guard(fn, "timer") : fn, ms);
   window.addEventListener("error", (e) => dbg("JS error: " + e.message + (e.filename ? " @ " + e.filename + ":" + e.lineno : "") + (e.error ? " — " + describe(e.error) : "")));
   window.addEventListener("unhandledrejection", (e) => dbg("Unhandled promise: " + describe(e.reason)));
-  dbg("plugin v3.8.2 starting — " + navigator.userAgent + " — origin: " + (location.origin || "?") + ", in iframe: " + (window.parent !== window));
+  dbg("plugin v3.8.3 starting — " + navigator.userAgent + " — origin: " + (location.origin || "?") + ", in iframe: " + (window.parent !== window));
 
   // ---------- State ----------
   const DEFAULT_VIEW = { sort1: "love", dir1: "desc", sort2: "none", dir2: "asc",
@@ -841,7 +841,7 @@
     if (!$("snLog").hidden) $("snLog").textContent = SN.log.join("\n");
   }
   let diagOpen = false;
-  const VERSION = "3.8.2";
+  const VERSION = "3.8.3";
   $("diagBtn").addEventListener("click", () => { diagOpen = !diagOpen; $("snLog").hidden = !diagOpen; updateStatus(); if (!diagOpen && currentNote) $("snStatus").hidden = true; });
   $("snDetailsBtn").addEventListener("click", () => {
     $("snLog").hidden = !$("snLog").hidden;
