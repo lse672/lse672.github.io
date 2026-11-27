@@ -234,6 +234,26 @@
 (function () {
   "use strict";
 
+  // ---------- Diagnostics: catch every error with its real message & stack ----------
+  // (Inside the mobile app's sandbox the browser only reports "Script error.", so we
+  //  wrap all event handlers and callbacks ourselves.)
+  const LOG = [];
+  const dbg = (m) => { LOG.push(new Date().toTimeString().slice(0, 8) + "  " + m); if (LOG.length > 80) LOG.shift(); };
+  const describe = (err) => err ? (err.stack || err.message || String(err)) : "unknown";
+  const guard = (fn, where) => function () {
+    try { return fn.apply(this, arguments); }
+    catch (err) { dbg("ERROR in " + where + ": " + describe(err)); }
+  };
+  const nativeAEL = EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener = function (type, fn, opts) {
+    return nativeAEL.call(this, type, typeof fn === "function" ? guard(fn, type + " handler") : fn, opts);
+  };
+  const nativeST = window.setTimeout.bind(window);
+  window.setTimeout = (fn, ms) => nativeST(typeof fn === "function" ? guard(fn, "timer") : fn, ms);
+  window.addEventListener("error", (e) => dbg("JS error: " + e.message + (e.filename ? " @ " + e.filename + ":" + e.lineno : "") + (e.error ? " — " + describe(e.error) : "")));
+  window.addEventListener("unhandledrejection", (e) => dbg("Unhandled promise: " + describe(e.reason)));
+  dbg("plugin v3.8.2 starting — " + navigator.userAgent + " — origin: " + (location.origin || "?") + ", in iframe: " + (window.parent !== window));
+
   // ---------- State ----------
   const DEFAULT_VIEW = { sort1: "love", dir1: "desc", sort2: "none", dir2: "asc",
                          filterCat: null, filterTags: [], feeling: "any", scaleFilters: {}, groupByCat: false, showDone: true };
@@ -332,8 +352,8 @@
     let cats = Array.isArray(t.categories) ? t.categories : [];
     if (!cats.length && t.category) cats = [t.category];          // v1 → v2 migration
     return {
-      id: t.id || uid(), text: String(t.text || ""), love: Math.max(-5, Math.min(5, (t.love ?? t.stars ?? 0) | 0)),   // v1/v2 "stars" → positive hearts
-      ...Object.fromEntries(SCALES.map((sc) => [sc.key, Math.max(0, Math.min(5, (t[sc.key] ?? 0) | 0))])),
+      id: t.id || uid(), text: String(t.text || ""), love: Math.max(-5, Math.min(5, (t.love != null ? t.love : t.stars != null ? t.stars : 0) | 0)),   // v1/v2 "stars" → positive hearts
+      ...Object.fromEntries(SCALES.map((sc) => [sc.key, Math.max(0, Math.min(5, (t[sc.key] != null ? t[sc.key] : 0) | 0))])),
       categories: uniq(cats), tags: uniq((Array.isArray(t.tags) ? t.tags : []).map((x) => String(x).replace(/^#+/, ""))),
       done: !!t.done, created: t.created || Date.now(), doneAt: t.doneAt || null,
     };
@@ -801,9 +821,7 @@
 
   // ---------- Standard Notes connection (same set-up as the Échéancier plugin) ----------
   const STANDALONE = window.parent === window;      // opened directly in a browser
-  const log = [];
-  const dbg = (m) => { log.push(new Date().toTimeString().slice(0, 8) + "  " + m); if (log.length > 60) log.shift(); };
-  window.addEventListener("error", (e) => dbg("JS error: " + e.message));
+  const log = LOG;
   let relay = null;
   const SN = {
     log, dbg,
@@ -823,7 +841,7 @@
     if (!$("snLog").hidden) $("snLog").textContent = SN.log.join("\n");
   }
   let diagOpen = false;
-  const VERSION = "3.8.1";
+  const VERSION = "3.8.2";
   $("diagBtn").addEventListener("click", () => { diagOpen = !diagOpen; $("snLog").hidden = !diagOpen; updateStatus(); if (!diagOpen && currentNote) $("snStatus").hidden = true; });
   $("snDetailsBtn").addEventListener("click", () => {
     $("snLog").hidden = !$("snLog").hidden;
@@ -839,7 +857,7 @@
       handleRequestForContentHeight: () => undefined,
       onReady: () => dbg("connected (" + (relay.environment || "?") + " / " + (relay.platform || "?") + ")"),
     });
-    relay.streamContextItem((note) => {
+    relay.streamContextItem(guard((note) => {
       const isNewNote = !currentNote || currentNote.uuid !== note.uuid;
       currentNote = note;
       const text = (note.content && note.content.text) || "";
@@ -852,8 +870,10 @@
       if (isNewNote) { editingId = null; openPicker = null; }
       lastSavedText = text;
       state = parseText(text);
+      dbg("parsed: " + state.todos.length + " todos");
       render();
-    });
+      dbg("rendered " + document.querySelectorAll("li.todo").length + " rows");
+    }, "note callback"));
   } else if (STANDALONE) {
     standalone = true;
     let saved = null;
