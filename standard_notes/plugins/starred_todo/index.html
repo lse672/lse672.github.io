@@ -314,7 +314,9 @@
   }
 
   // ---------- Persistence (Standard Notes, or localStorage when opened directly) ----------
-  const inSN = window.parent !== window;
+  // Note: on desktop/web Standard Notes loads editors in an iframe, but on mobile (Android/iOS)
+  // the editor is the top-level page of a WebView — so never rely on window.parent to detect SN.
+  let standalone = false;   // true only when opened directly in a browser (no SN host answered)
   let relay = null;
   let currentNote = null;
   let lastSavedText = null;
@@ -373,7 +375,7 @@
         note.content.preview_plain = previewText();
         note.content.preview_html = null;
       });
-    } else if (!inSN) {
+    } else if (standalone) {
       try { localStorage.setItem("starred-todo-standalone", text); } catch (e) {}
     }
   }
@@ -791,8 +793,8 @@
   });
 
   // ---------- Boot ----------
-  if (inSN && window.ComponentRelay) {
-    const Relay = window.ComponentRelay.default || window.ComponentRelay;
+  const Relay = window.ComponentRelay && (window.ComponentRelay.default || window.ComponentRelay);
+  if (Relay) {
     relay = new Relay({
       targetWindow: window,
       options: { coallesedSaving: true, coallesedSavingDelay: 400 },
@@ -803,16 +805,22 @@
           if (note.isMetadataUpdate) return;
           if (!isNewNote && note.content.text === lastSavedText) return;   // our own save echoed back
           if (isNewNote) { editingId = null; openPicker = null; }
+          standalone = false;
           state = parseText(note.content.text || "");
           render();
         });
       },
     });
-  } else {
+  }
+  // Standalone fallback (opened directly in a browser for testing): only if no note arrived.
+  setTimeout(() => {
+    if (currentNote || window.parent !== window) return;
+    standalone = true;
     let saved = null;
     try { saved = localStorage.getItem("starred-todo-standalone"); } catch (e) {}
     state = parseText(saved || "");
-  }
+    render();
+  }, 2000);
   render();
 })();
 </script>
